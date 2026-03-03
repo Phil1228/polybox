@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>novel</title>
+    <style>
+      :root {
+        --bg: #f4f6fb;
+        --card: #ffffff;
+        --text: #1a1a1a;
+        --line: #d7dce7;
+        --primary: #2f6fff;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        min-height: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+
+      body {
+        padding: 16px 14px 24px;
+      }
+
+      .page {
+        width: min(94vw, 760px);
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 18px 14px;
+      }
+
+      .topbar {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .novel-name {
+        text-align: center;
+        font-size: 22px;
+        font-weight: 700;
+        line-height: 1.2;
+      }
+
+      .icon-btn {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        min-width: 38px;
+        height: 38px;
+        background: #fff;
+        font-size: 18px;
+      }
+
+      .meta {
+        margin: 8px 0 0;
+        color: #68727f;
+        font-size: 14px;
+      }
+
+      .content {
+        margin-top: 12px;
+        min-height: 160px;
+        font-size: 19px;
+        line-height: 1.9;
+        white-space: pre-wrap;
+      }
+
+      .submissions-title {
+        margin: 14px 0 8px;
+        font-size: 16px;
+        font-weight: 700;
+      }
+
+      .submissions {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .submission-item {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px 10px;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .submission-item.top {
+        border-color: #9bb6ff;
+        background: #f3f7ff;
+      }
+
+      .submission-meta {
+        color: #5d6472;
+      }
+
+      .more-inline-btn {
+        min-height: 32px;
+        padding: 0 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .pager {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .btn {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        min-height: 44px;
+        padding: 0 12px;
+        font-size: 16px;
+        font-weight: 600;
+        background: #fff;
+        color: var(--text);
+      }
+
+      .btn.primary {
+        background: var(--primary);
+        border-color: var(--primary);
+        color: #fff;
+      }
+
+      .field {
+        margin-top: 10px;
+      }
+
+      .input,
+      .textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+        font-size: 16px;
+      }
+
+      .textarea {
+        min-height: 130px;
+        resize: vertical;
+      }
+
+      .count {
+        margin-top: 6px;
+        text-align: right;
+        font-size: 12px;
+        color: #76808f;
+      }
+
+      .popup {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        background: rgba(0, 0, 0, 0.28);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+      }
+
+      .popup.is-open {
+        display: flex;
+      }
+
+      .popup-card {
+        width: min(92vw, 430px);
+        background: #fff;
+        border-radius: 14px;
+        padding: 16px 14px;
+      }
+
+      .popup-line {
+        margin: 8px 0;
+        font-size: 15px;
+      }
+
+      .candidate-scroll {
+        max-height: 64vh;
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px;
+      }
+
+      .candidate-item {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px 10px;
+        font-size: 14px;
+        margin-bottom: 8px;
+        background: #fff;
+      }
+
+      .candidate-item:last-child {
+        margin-bottom: 0;
+      }
+
+      .candidate-item .meta {
+        margin: 0 0 4px;
+      }
+
+      .candidate-load {
+        text-align: center;
+        color: #68727f;
+        font-size: 13px;
+        padding: 6px 0 0;
+      }
+
+      .status {
+        margin-top: 8px;
+        font-size: 14px;
+        color: #68727f;
+      }
+
+      .settings-page {
+        position: fixed;
+        inset: 0;
+        z-index: 70;
+        background: var(--bg);
+        padding: 20px 16px calc(16px + env(safe-area-inset-bottom));
+        display: none;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .settings-page.is-open {
+        display: flex;
+      }
+
+      .settings-title {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 700;
+      }
+
+      .setting-item {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+      }
+
+      .setting-label {
+        font-size: 14px;
+        color: #5d6472;
+        margin-bottom: 6px;
+      }
+
+      .setting-input {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        min-height: 42px;
+        padding: 0 10px;
+        font-size: 15px;
+      }
+
+      .setting-check {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="topbar">
+        <button class="btn" id="open-settings-btn" style="justify-self: start">设置</button>
+        <div class="novel-name" id="novel-name">众创小说</div>
+        <button class="icon-btn" id="detail-btn" aria-label="查看详情" style="justify-self: end">i</button>
+      </section>
+
+      <section class="card">
+        <p class="meta" id="seq-meta">第 1 页</p>
+        <div class="content" id="novel-content">加载中...</div>
+        <h3 class="submissions-title">下一页候选榜（续写本段）</h3>
+        <ul class="submissions" id="submissions-list"></ul>
+      </section>
+
+      <section class="pager">
+        <button class="btn" id="prev-btn">上一页</button>
+        <button class="btn" id="next-btn">下一页</button>
+      </section>
+
+      <section class="card">
+        <button class="btn" id="toggle-write-btn" style="width: 100%; margin-bottom: 10px">我要续写</button>
+        <div id="write-section">
+        <div class="field">
+          <textarea
+            class="textarea"
+            id="continue-input"
+            maxlength="400"
+            placeholder="开始续写第1页"
+          ></textarea>
+          <div class="count" id="text-count">0/400</div>
+        </div>
+        <div class="field">
+          <input class="input" id="author-input" maxlength="10" placeholder="输入作者名" />
+        </div>
+        <div class="field">
+          <button class="btn primary" id="submit-btn" style="width: 100%">提交</button>
+        </div>
+        <div class="status" id="submit-status"></div>
+        </div>
+      </section>
+    </main>
+
+    <section class="settings-page" id="settings-page">
+      <h2 class="settings-title">设置</h2>
+      <div class="setting-item">
+        <div class="setting-label">作者名</div>
+        <input class="setting-input" id="setting-author" maxlength="10" placeholder="输入作者名" />
+      </div>
+      <div class="setting-item">
+        <div class="setting-label">小说名</div>
+        <input class="setting-input" id="setting-novel-name" maxlength="20" placeholder="输入小说名" />
+      </div>
+      <div class="setting-item">
+        <label class="setting-check">
+          <input type="checkbox" id="setting-is-author" />
+          <span>我是作者</span>
+        </label>
+      </div>
+      <button class="btn primary" id="save-settings-btn">保存</button>
+      <button class="btn" id="close-settings-btn">关闭</button>
+    </section>
+
+    <div class="popup" id="detail-popup">
+      <div class="popup-card">
+        <h2 style="margin: 0; font-size: 20px; font-weight: 700">内容详情</h2>
+        <p class="popup-line" id="detail-votes">票数：0</p>
+        <p class="popup-line" id="detail-author">作者：匿名</p>
+        <p class="popup-line" id="detail-time">创建时间：-</p>
+        <button class="btn primary" id="like-btn" style="width: 100%">点赞 +1</button>
+        <button class="btn" id="close-popup-btn" style="width: 100%; margin-top: 8px">关闭</button>
+      </div>
+    </div>
+
+    <div class="popup" id="candidates-popup">
+      <div class="popup-card">
+        <h2 style="margin: 0; font-size: 20px; font-weight: 700">候选内容</h2>
+        <div class="candidate-scroll" id="candidate-scroll"></div>
+        <div class="candidate-load" id="candidate-load">向下滚动加载更多</div>
+        <button class="btn" id="close-candidates-btn" style="width: 100%; margin-top: 10px">关闭</button>
+      </div>
+    </div>
+
+    <script type="module" src="/novel.js"></script>
+  </body>
+</html>

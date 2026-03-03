@@ -56,7 +56,54 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(entry_id) REFERENCES leaderboard_entries(id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS novel_contents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    seq INTEGER NOT NULL,
+    parent_id INTEGER,
+    content TEXT NOT NULL,
+    votes INTEGER NOT NULL DEFAULT 0,
+    author TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS novel_like_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    content_id INTEGER NOT NULL,
+    device_id TEXT NOT NULL,
+    ip TEXT NOT NULL,
+    liked_at INTEGER NOT NULL
+  );
 `);
+
+const DEFAULT_NOVEL_ROOT_CONTENT =
+  "这是一个众创故事，每个人都可以改变故事的走向，也可以随时开始创作。请从这里接力，让故事继续发生。";
+const LEGACY_NOVEL_ROOT_CONTENT =
+  "夜雨初停，街灯在水洼里晃动。我把伞收好，推开那扇旧书店的门，风铃轻轻响了一声。";
+
+const readRootNovelStmt = db.prepare(`
+  SELECT id, content, author
+  FROM novel_contents
+  WHERE seq = 1 AND parent_id IS NULL
+  ORDER BY id ASC
+  LIMIT 1
+`);
+const insertRootNovelStmt = db.prepare(`
+  INSERT INTO novel_contents (seq, parent_id, content, votes, author)
+  VALUES (?, ?, ?, ?, ?)
+`);
+const updateRootNovelContentStmt = db.prepare(`
+  UPDATE novel_contents
+  SET content = ?
+  WHERE id = ?
+`);
+
+const rootNovel = readRootNovelStmt.get();
+if (!rootNovel) {
+  insertRootNovelStmt.run(1, null, DEFAULT_NOVEL_ROOT_CONTENT, 0, "系统");
+} else if (rootNovel.author === "系统" && rootNovel.content === LEGACY_NOVEL_ROOT_CONTENT) {
+  updateRootNovelContentStmt.run(DEFAULT_NOVEL_ROOT_CONTENT, rootNovel.id);
+}
 
 function hasColumn(tableName, columnName) {
   const rows = db.prepare(`PRAGMA table_info(${tableName})`).all();
@@ -68,6 +115,9 @@ if (!hasColumn("leaderboard_entries", "config_key")) {
 }
 if (!hasColumn("leaderboard_entries", "config_label")) {
   db.exec("ALTER TABLE leaderboard_entries ADD COLUMN config_label TEXT NOT NULL DEFAULT '未知-2-2-10'");
+}
+if (!hasColumn("novel_contents", "parent_id")) {
+  db.exec("ALTER TABLE novel_contents ADD COLUMN parent_id INTEGER");
 }
 
 const getSettingsStmt = db.prepare(`
@@ -147,6 +197,118 @@ const readLeaderboardItemsStmt = db.prepare(`
   ORDER BY item_order ASC, id ASC
 `);
 
+const readNovelTopBySeqStmt = db.prepare(`
+  SELECT
+    id,
+    seq,
+    parent_id AS parentId,
+    content,
+    votes,
+    author,
+    created_at AS createdAt
+  FROM novel_contents
+  WHERE seq = ?
+  ORDER BY votes DESC, id ASC
+  LIMIT 1
+`);
+
+const readNovelListBySeqStmt = db.prepare(`
+  SELECT
+    id,
+    seq,
+    parent_id AS parentId,
+    content,
+    votes,
+    author,
+    created_at AS createdAt
+  FROM novel_contents
+  WHERE seq = ?
+  ORDER BY votes DESC, id ASC
+`);
+
+const insertNovelStmt = db.prepare(`
+  INSERT INTO novel_contents (seq, parent_id, content, votes, author)
+  VALUES (?, ?, ?, 0, ?)
+`);
+
+const updateNovelVoteStmt = db.prepare(`
+  UPDATE novel_contents
+  SET votes = votes + 1
+  WHERE id = ?
+`);
+
+const readNovelByIdStmt = db.prepare(`
+  SELECT
+    id,
+    seq,
+    parent_id AS parentId,
+    content,
+    votes,
+    author,
+    created_at AS createdAt
+  FROM novel_contents
+  WHERE id = ?
+`);
+
+const readNovelChildrenTopStmt = db.prepare(`
+  SELECT
+    id,
+    seq,
+    parent_id AS parentId,
+    content,
+    votes,
+    author,
+    created_at AS createdAt
+  FROM novel_contents
+  WHERE parent_id = ?
+  ORDER BY votes DESC, id ASC
+  LIMIT 1
+`);
+
+const readNovelChildrenListStmt = db.prepare(`
+  SELECT
+    id,
+    seq,
+    parent_id AS parentId,
+    content,
+    votes,
+    author,
+    created_at AS createdAt
+  FROM novel_contents
+  WHERE parent_id = ?
+  ORDER BY votes DESC, id ASC
+`);
+
+const readNovelChildrenPagedStmt = db.prepare(`
+  SELECT
+    id,
+    seq,
+    parent_id AS parentId,
+    content,
+    votes,
+    author,
+    created_at AS createdAt
+  FROM novel_contents
+  WHERE parent_id = ?
+  ORDER BY votes DESC, id ASC
+  LIMIT ?
+  OFFSET ?
+`);
+
+const readNovelRecentLikeStmt = db.prepare(`
+  SELECT liked_at AS likedAt
+  FROM novel_like_logs
+  WHERE content_id = ?
+    AND (device_id = ? OR ip = ?)
+  ORDER BY id DESC
+  LIMIT 1
+`);
+
+const insertNovelLikeLogStmt = db.prepare(`
+  INSERT INTO novel_like_logs (content_id, device_id, ip, liked_at)
+  VALUES (?, ?, ?, ?)
+`);
+
 function sanitizeSettings(input) {
   const questionCountCandidates = [10, 20, 30, 40];
   const problemTypeCandidates = ["add", "subtract", "multiply", "divide", "addsubtract", "all"];
@@ -217,6 +379,14 @@ function badRequest(res, message) {
 
 function notFound(res) {
   json(res, 404, { error: "Not found" });
+}
+
+function getClientIp(req) {
+  const forwarded = req.headers["x-forwarded-for"];
+  if (typeof forwarded === "string" && forwarded.trim()) {
+    return forwarded.split(",")[0].trim();
+  }
+  return req.socket?.remoteAddress || "unknown";
 }
 
 function readBody(req) {
@@ -540,6 +710,114 @@ async function handleApi(req, res, pathname) {
     return true;
   }
 
+  if (req.method === "GET" && pathname === "/api/novel/content") {
+    const query = new URL(req.url || "/", `http://${HOST}:${PORT}`).searchParams;
+    const id = Number(query.get("id"));
+    const seq = Number(query.get("seq"));
+
+    let item = null;
+    if (Number.isInteger(id) && id > 0) {
+      item = readNovelByIdStmt.get(id) || null;
+    } else {
+      const targetSeq = Number.isInteger(seq) && seq > 0 ? seq : 1;
+      item = readNovelTopBySeqStmt.get(targetSeq) || null;
+    }
+
+    const nextTopItem = item ? readNovelChildrenTopStmt.get(item.id) || null : null;
+    const items = item ? readNovelChildrenListStmt.all(item.id) : [];
+    json(res, 200, { item, nextTopItem, items });
+    return true;
+  }
+
+  if (req.method === "GET" && pathname === "/api/novel/candidates") {
+    const query = new URL(req.url || "/", `http://${HOST}:${PORT}`).searchParams;
+    const parentId = Number(query.get("parentId"));
+    const offset = Number(query.get("offset"));
+    const limit = Number(query.get("limit"));
+    const safeOffset = Number.isInteger(offset) && offset >= 0 ? offset : 0;
+    const safeLimit = Number.isInteger(limit) && limit > 0 ? Math.min(limit, 50) : 20;
+
+    if (!Number.isInteger(parentId) || parentId <= 0) {
+      badRequest(res, "Invalid parentId");
+      return true;
+    }
+
+    const rows = readNovelChildrenPagedStmt.all(parentId, safeLimit + 1, safeOffset);
+    const hasMore = rows.length > safeLimit;
+    const items = hasMore ? rows.slice(0, safeLimit) : rows;
+    json(res, 200, { items, hasMore });
+    return true;
+  }
+
+  if (req.method === "POST" && pathname === "/api/novel/like") {
+    const body = JSON.parse((await readBody(req)) || "{}");
+    const id = Number(body.id);
+    const deviceId = typeof body.deviceId === "string" ? body.deviceId.slice(0, 64) : "";
+    const ip = getClientIp(req);
+    if (!Number.isInteger(id) || id <= 0) {
+      badRequest(res, "Invalid novel id");
+      return true;
+    }
+    if (!deviceId) {
+      badRequest(res, "Missing deviceId");
+      return true;
+    }
+
+    const now = Date.now();
+    const cooldownMs = 30 * 1000;
+    const recent = readNovelRecentLikeStmt.get(id, deviceId, ip);
+    if (recent && now - Number(recent.likedAt) < cooldownMs) {
+      json(res, 429, {
+        error: "Like too frequent",
+        retryAfterMs: cooldownMs - (now - Number(recent.likedAt)),
+      });
+      return true;
+    }
+
+    db.exec("BEGIN");
+    try {
+      updateNovelVoteStmt.run(id);
+      insertNovelLikeLogStmt.run(id, deviceId, ip, now);
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
+
+    const item = readNovelByIdStmt.get(id) || null;
+    json(res, 200, { item });
+    return true;
+  }
+
+  if (req.method === "POST" && pathname === "/api/novel/submit") {
+    const body = JSON.parse((await readBody(req)) || "{}");
+    const parentId = Number(body.parentId);
+    const content = typeof body.content === "string" ? body.content.trim() : "";
+    const author = typeof body.author === "string" ? body.author.trim().slice(0, 10) : "";
+    if (!Number.isInteger(parentId) || parentId <= 0) {
+      badRequest(res, "Invalid parentId");
+      return true;
+    }
+    if (!content || content.length > 400) {
+      badRequest(res, "Content length must be 1-400");
+      return true;
+    }
+    if (!author) {
+      badRequest(res, "Author is required");
+      return true;
+    }
+    const parent = readNovelByIdStmt.get(parentId);
+    if (!parent) {
+      badRequest(res, "Parent content not found");
+      return true;
+    }
+    const seq = Number(parent.seq) + 1;
+    insertNovelStmt.run(seq, parentId, content, author);
+    const item = readNovelChildrenTopStmt.get(parentId) || null;
+    json(res, 200, { ok: true, item });
+    return true;
+  }
+
   return false;
 }
 
@@ -562,12 +840,20 @@ createServer(async (req, res) => {
       sendFile(res, "xiaoguwen.html");
       return;
     }
+    if (pathname === "/novel.html") {
+      sendFile(res, "novel.html");
+      return;
+    }
     if (pathname === "/app.js") {
       sendFile(res, "app.js");
       return;
     }
     if (pathname === "/mini-eng.js") {
       sendFile(res, "mini-eng.js");
+      return;
+    }
+    if (pathname === "/novel.js") {
+      sendFile(res, "novel.js");
       return;
     }
     if (pathname === "/xiaoguwen.js") {
