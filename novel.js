@@ -11,11 +11,30 @@ const submitBtn = document.getElementById("submit-btn");
 const submitStatus = document.getElementById("submit-status");
 
 const detailPopup = document.getElementById("detail-popup");
+const detailId = document.getElementById("detail-id");
 const detailVotes = document.getElementById("detail-votes");
 const detailAuthor = document.getElementById("detail-author");
 const detailTime = document.getElementById("detail-time");
+const shareBtn = document.getElementById("share-btn");
+const shareStatus = document.getElementById("share-status");
+const integrateBtn = document.getElementById("integrate-btn");
 const likeBtn = document.getElementById("like-btn");
 const closePopupBtn = document.getElementById("close-popup-btn");
+const jumpBtn = document.getElementById("jump-btn");
+const jumpPopup = document.getElementById("jump-popup");
+const jumpSeqInput = document.getElementById("jump-seq-input");
+const jumpIdInput = document.getElementById("jump-id-input");
+const jumpSeqGoBtn = document.getElementById("jump-seq-go-btn");
+const jumpIdGoBtn = document.getElementById("jump-id-go-btn");
+const closeJumpPopupBtn = document.getElementById("close-jump-popup-btn");
+const jumpCurrentId = document.getElementById("jump-current-id");
+const jumpCurrentSeq = document.getElementById("jump-current-seq");
+const jumpStatus = document.getElementById("jump-status");
+const integratePopup = document.getElementById("integrate-popup");
+const integratedContent = document.getElementById("integrated-content");
+const integrateStatus = document.getElementById("integrate-status");
+const downloadPdfBtn = document.getElementById("download-pdf-btn");
+const closeIntegratePopupBtn = document.getElementById("close-integrate-popup-btn");
 const candidatesPopup = document.getElementById("candidates-popup");
 const candidateScroll = document.getElementById("candidate-scroll");
 const candidateLoad = document.getElementById("candidate-load");
@@ -27,9 +46,16 @@ const settingNovelName = document.getElementById("setting-novel-name");
 const settingIsAuthor = document.getElementById("setting-is-author");
 const saveSettingsBtn = document.getElementById("save-settings-btn");
 const closeSettingsBtn = document.getElementById("close-settings-btn");
+const settingsMoreBtn = document.getElementById("settings-more-btn");
 const novelName = document.getElementById("novel-name");
 const toggleWriteBtn = document.getElementById("toggle-write-btn");
 const writeSection = document.getElementById("write-section");
+const navPage = document.getElementById("nav-page");
+const navCloseBtn = document.getElementById("nav-close-btn");
+const navMinimathsBtn = document.getElementById("nav-minimaths-btn");
+const navMiniEngBtn = document.getElementById("nav-mini-eng-btn");
+const navXiaoguwenBtn = document.getElementById("nav-xiaoguwen-btn");
+const navNovelBtn = document.getElementById("nav-novel-btn");
 
 let currentSeq = 1;
 let currentItem = null;
@@ -40,12 +66,14 @@ let candidateOffset = 0;
 let candidateHasMore = true;
 let candidateLoading = false;
 const NOVEL_LOCAL_SETTINGS_KEY = "novel_local_settings";
+const NOVEL_CURRENT_ID_COOKIE = "novel_current_id";
 let localSettings = {
   author: "",
   novelName: "Novel",
   isAuthor: false,
 };
 let writeVisible = false;
+let integratedLines = [];
 
 async function api(path, options = {}) {
   const resp = await fetch(path, {
@@ -69,6 +97,22 @@ async function api(path, options = {}) {
 
 function updateInputPlaceholder() {
   continueInput.placeholder = "开始续写第" + currentSeq + "页";
+}
+
+function getCookieValue(key) {
+  const cookieText = document.cookie || "";
+  const parts = cookieText.split(";");
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (trimmed.startsWith(key + "=")) return decodeURIComponent(trimmed.slice(key.length + 1));
+  }
+  return "";
+}
+
+function setCookieValue(key, value, days) {
+  const maxAge = Math.max(0, Math.floor(days * 24 * 60 * 60));
+  document.cookie =
+    key + "=" + encodeURIComponent(value) + "; Max-Age=" + maxAge + "; Path=/; SameSite=Lax";
 }
 
 function loadLocalSettings() {
@@ -110,6 +154,33 @@ function openSettings() {
 
 function closeSettings() {
   settingsPage.classList.remove("is-open");
+}
+
+function openNav() {
+  navPage.classList.add("is-open");
+}
+
+function closeNav() {
+  navPage.classList.remove("is-open");
+}
+
+function openJumpPopup() {
+  jumpCurrentId.textContent = "当前阅读ID：" + (currentItem?.id ?? "-");
+  jumpCurrentSeq.textContent = "当前页序号：" + (currentItem?.seq ?? "-");
+  jumpStatus.textContent = "";
+  jumpPopup.classList.add("is-open");
+}
+
+function closeJumpPopup() {
+  jumpPopup.classList.remove("is-open");
+}
+
+function openIntegratePopup() {
+  integratePopup.classList.add("is-open");
+}
+
+function closeIntegratePopup() {
+  integratePopup.classList.remove("is-open");
 }
 
 function getOrCreateDeviceId() {
@@ -157,11 +228,13 @@ function renderContent(item) {
     contentEl.textContent = "这一页还没有内容，欢迎你来续写第一条。";
     prevBtn.disabled = true;
     nextBtn.disabled = true;
+    submitBtn.disabled = true;
     return;
   }
   contentEl.textContent = item.content;
   prevBtn.disabled = !item.parentId;
   nextBtn.disabled = !nextTopItem;
+  submitBtn.disabled = false;
 }
 
 function renderCandidateItems(items, append) {
@@ -233,11 +306,19 @@ function closeCandidatesPopup() {
   candidatesPopup.classList.remove("is-open");
 }
 
-async function loadByQuery(query) {
+async function loadByQuery(query, options = {}) {
+  const preserveOnNotFound = Boolean(options.preserveOnNotFound);
   const data = await api("/api/novel/content?" + query);
+  if (!data.item && preserveOnNotFound) {
+    return false;
+  }
   nextTopItem = data.nextTopItem || null;
   renderContent(data.item || null);
   renderSubmissions(data.items || []);
+  if (currentItem && currentItem.id) {
+    setCookieValue(NOVEL_CURRENT_ID_COOKIE, String(currentItem.id), 365);
+  }
+  return Boolean(data.item);
 }
 
 function openDetail() {
@@ -245,14 +326,117 @@ function openDetail() {
     submitStatus.textContent = "当前页暂无内容可查看详情";
     return;
   }
+  detailId.textContent = "内容ID：" + currentItem.id;
   detailVotes.textContent = "票数：" + currentItem.votes;
   detailAuthor.textContent = "作者：" + currentItem.author;
   detailTime.textContent = "创建时间：" + currentItem.createdAt;
+  shareStatus.textContent = "";
   detailPopup.classList.add("is-open");
 }
 
 function closeDetail() {
   detailPopup.classList.remove("is-open");
+}
+
+function buildShareLink() {
+  if (!currentItem?.id) return "";
+  const url = new URL(window.location.href);
+  url.pathname = "/novel.html";
+  url.search = "";
+  url.searchParams.set("id", String(currentItem.id));
+  return url.toString();
+}
+
+async function shareCurrent() {
+  if (!currentItem?.id) return;
+  const shareUrl = buildShareLink();
+  if (!shareUrl) return;
+
+  try {
+    if (navigator.share) {
+      await navigator.share({
+        title: localSettings.novelName || "Novel",
+        text: "来看看我正在创作的内容：",
+        url: shareUrl,
+      });
+      shareStatus.textContent = "已打开分享面板";
+      return;
+    }
+  } catch {
+    // Fall through to clipboard copy.
+  }
+
+  try {
+    await navigator.clipboard.writeText(shareUrl);
+    shareStatus.textContent = "分享链接已复制";
+  } catch {
+    shareStatus.textContent = "分享链接：" + shareUrl;
+  }
+}
+
+async function integrateCurrent() {
+  if (!currentItem?.id) return;
+  integrateStatus.textContent = "整合中...";
+  integratedContent.textContent = "";
+  integratedLines = [];
+
+  try {
+    const data = await api("/api/novel/integrated?id=" + currentItem.id + "&limit=100");
+    const items = data.items || [];
+    integratedLines = items.map((item) => item.content);
+    integratedContent.textContent = integratedLines.join("\n\n");
+    integrateStatus.textContent = "共整合 " + items.length + " 段内容";
+    openIntegratePopup();
+  } catch {
+    integrateStatus.textContent = "整合失败，请稍后重试";
+    openIntegratePopup();
+  }
+}
+
+function downloadAsPdf() {
+  if (!currentItem?.id) {
+    integrateStatus.textContent = "当前内容不存在";
+    return;
+  }
+  if (!integratedLines.length) {
+    integrateStatus.textContent = "暂无可导出的内容";
+    return;
+  }
+  const title = localSettings.novelName || "Novel";
+  const url =
+    "/api/novel/integrated.pdf?id=" +
+    currentItem.id +
+    "&limit=100&title=" +
+    encodeURIComponent(title);
+  integrateStatus.textContent = "正在下载PDF...";
+  fetch(url)
+    .then((resp) => {
+      if (!resp.ok) {
+        return resp
+          .json()
+          .then((data) => {
+            throw new Error(data?.error || "PDF下载失败");
+          })
+          .catch(() => {
+            throw new Error("PDF下载失败");
+          });
+      }
+      return resp.blob();
+    })
+    .then((blob) => {
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objUrl;
+      a.download = title + ".pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objUrl);
+      integrateStatus.textContent = "PDF已下载";
+    })
+    .catch((error) => {
+      integrateStatus.textContent = error?.message || "PDF下载失败，请稍后重试";
+    });
 }
 
 async function likeCurrent() {
@@ -339,6 +523,8 @@ detailPopup.addEventListener("click", (e) => {
   if (e.target === detailPopup) closeDetail();
 });
 likeBtn.addEventListener("click", likeCurrent);
+shareBtn.addEventListener("click", shareCurrent);
+integrateBtn.addEventListener("click", integrateCurrent);
 submitBtn.addEventListener("click", submitContinuation);
 prevBtn.addEventListener("click", () => {
   if (!currentItem || !currentItem.parentId) return;
@@ -365,6 +551,46 @@ candidateScroll.addEventListener("click", (event) => {
   closeCandidatesPopup();
   loadByQuery("id=" + id);
 });
+jumpBtn.addEventListener("click", openJumpPopup);
+jumpSeqGoBtn.addEventListener("click", () => {
+  const seq = Number(jumpSeqInput.value);
+  if (!Number.isInteger(seq) || seq <= 0) {
+    jumpStatus.textContent = "请输入正确页数";
+    return;
+  }
+  loadByQuery("seq=" + seq, { preserveOnNotFound: true }).then((ok) => {
+    if (ok) {
+      jumpStatus.textContent = "";
+      closeJumpPopup();
+    } else {
+      jumpStatus.textContent = "该内容不存在";
+    }
+  });
+});
+jumpIdGoBtn.addEventListener("click", () => {
+  const id = Number(jumpIdInput.value);
+  if (!Number.isInteger(id) || id <= 0) {
+    jumpStatus.textContent = "请输入正确内容ID";
+    return;
+  }
+  loadByQuery("id=" + id, { preserveOnNotFound: true }).then((ok) => {
+    if (ok) {
+      jumpStatus.textContent = "";
+      closeJumpPopup();
+    } else {
+      jumpStatus.textContent = "该内容不存在";
+    }
+  });
+});
+closeJumpPopupBtn.addEventListener("click", closeJumpPopup);
+jumpPopup.addEventListener("click", (e) => {
+  if (e.target === jumpPopup) closeJumpPopup();
+});
+downloadPdfBtn.addEventListener("click", downloadAsPdf);
+closeIntegratePopupBtn.addEventListener("click", closeIntegratePopup);
+integratePopup.addEventListener("click", (e) => {
+  if (e.target === integratePopup) closeIntegratePopup();
+});
 
 toggleWriteBtn.addEventListener("click", () => {
   writeVisible = !writeVisible;
@@ -373,6 +599,7 @@ toggleWriteBtn.addEventListener("click", () => {
 
 openSettingsBtn.addEventListener("click", openSettings);
 closeSettingsBtn.addEventListener("click", closeSettings);
+settingsMoreBtn.addEventListener("click", openNav);
 saveSettingsBtn.addEventListener("click", () => {
   localSettings = {
     author: settingAuthor.value.trim().slice(0, 10),
@@ -385,10 +612,44 @@ saveSettingsBtn.addEventListener("click", () => {
   syncWriteToggle();
   closeSettings();
 });
+navCloseBtn.addEventListener("click", closeNav);
+navMinimathsBtn.addEventListener("click", () => {
+  window.location.href = "/";
+});
+navMiniEngBtn.addEventListener("click", () => {
+  window.location.href = "/mini-eng.html";
+});
+navXiaoguwenBtn.addEventListener("click", () => {
+  window.location.href = "/xiaoguwen.html";
+});
+navNovelBtn.addEventListener("click", () => {
+  closeNav();
+  closeSettings();
+});
 
 loadLocalSettings();
 writeVisible = Boolean(localSettings.isAuthor);
 applyLocalSettingsToView();
 syncWriteToggle();
-
-loadByQuery("seq=1");
+const initParams = new URLSearchParams(window.location.search);
+const idFromUrl = Number(initParams.get("id"));
+if (Number.isInteger(idFromUrl) && idFromUrl > 0) {
+  loadByQuery("id=" + idFromUrl)
+    .then(() => {
+      if (!currentItem) return loadByQuery("seq=1");
+      return null;
+    })
+    .catch(() => loadByQuery("seq=1"));
+} else {
+  const savedId = Number(getCookieValue(NOVEL_CURRENT_ID_COOKIE));
+  if (Number.isInteger(savedId) && savedId > 0) {
+    loadByQuery("id=" + savedId)
+      .then(() => {
+        if (!currentItem) return loadByQuery("seq=1");
+        return null;
+      })
+      .catch(() => loadByQuery("seq=1"));
+  } else {
+    loadByQuery("seq=1");
+  }
+}

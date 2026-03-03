@@ -494,10 +494,6 @@
         color: var(--text);
       }
 
-      .nav-button-hidden {
-        opacity: 0;
-      }
-
       .congrats-overlay {
         position: fixed;
         inset: 0;
@@ -708,18 +704,7 @@
       <ul class="history-list" id="detail-history-list"></ul>
     </section>
 
-    <section class="nav-page" id="nav-page">
-      <h2 class="nav-title">导航</h2>
-      <div class="nav-actions">
-        <button class="nav-button" id="nav-minimaths">minimaths</button>
-        <button class="nav-button" id="nav-mini-eng">miniEng</button>
-        <button class="nav-button" id="nav-xiaoguwen">小古文</button>
-        <button class="nav-button nav-button-hidden" id="nav-novel">novel</button>
-      </div>
-      <div class="settings-actions">
-        <button class="settings-action" id="nav-close">返回</button>
-      </div>
-    </section>
+    <script src="/nav-loader.js" data-nav-variant="index"></script>
 
     <div class="congrats-overlay" id="congrats-overlay">
       <div class="congrats-card">

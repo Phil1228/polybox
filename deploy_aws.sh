@@ -28,7 +28,7 @@ require_cmd sshmgr
 echo "==> Packaging release: ${RELEASE_TAR}"
 tar -C "${LOCAL_ROOT}" \
   -czf "${RELEASE_TAR}" \
-  index.html mini-eng.html xiaoguwen.html novel.html app.js mini-eng.js xiaoguwen.js novel.js server.mjs package.json minimaths-icon.svg site.webmanifest icon-192.png icon-512.png apple-touch-icon.png
+  index.html mini-eng.html xiaoguwen.html novel.html app.js mini-eng.js xiaoguwen.js novel.js nav-loader.js server.mjs package.json package-lock.json minimaths-icon.svg site.webmanifest icon-192.png icon-512.png apple-touch-icon.png
 
 echo "==> Preparing remote deploy script"
 TMP_LOCAL_REMOTE_SH="$(mktemp)"
@@ -64,8 +64,91 @@ install_node_22() {
     sudo yum install -y nodejs
     return
   fi
+  if command -v apt-get >/dev/null 2>&1; then
+    sudo apt-get update -y
+    sudo apt-get install -y ca-certificates curl gnupg
+    curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+    return
+  fi
   echo "Unsupported package manager. Install Node.js >= 22 manually."
   exit 1
+}
+
+ensure_base_tools() {
+  if command -v dnf >/dev/null 2>&1; then
+    sudo dnf install -y unzip tar
+    return
+  fi
+  if command -v yum >/dev/null 2>&1; then
+    sudo yum install -y unzip tar
+    return
+  fi
+  if command -v apt-get >/dev/null 2>&1; then
+    sudo apt-get update -y
+    sudo apt-get install -y curl unzip tar
+    return
+  fi
+}
+
+download_file() {
+  local url="$1"
+  local output="$2"
+  if command -v curl >/dev/null 2>&1; then
+    curl -fL --retry 3 -o "${output}" "${url}"
+    return
+  fi
+  if command -v wget >/dev/null 2>&1; then
+    wget -O "${output}" "${url}"
+    return
+  fi
+  echo "Neither curl nor wget is available for download."
+  exit 1
+}
+
+ensure_system_cjk_fonts() {
+  echo "Installing Linux CJK font packages (best-effort)..."
+  if command -v dnf >/dev/null 2>&1; then
+    sudo dnf install -y \
+      google-noto-cjk-fonts \
+      google-noto-sans-cjk-fonts 
+  elif command -v yum >/dev/null 2>&1; then
+    sudo yum install -y \
+      google-noto-cjk-fonts \
+      google-noto-sans-cjk-fonts 
+  elif command -v apt-get >/dev/null 2>&1; then
+    sudo apt-get install -y fonts-noto-cjk || true
+  fi
+
+  if command -v fc-cache >/dev/null 2>&1; then
+    sudo fc-cache -f || true
+  fi
+}
+
+ensure_pdf_font_file() {
+  local font_dir="${APP_DIR}/fonts"
+  local font_file="${font_dir}/NotoSansCJKsc-Regular.otf"
+  local zip_file="${font_dir}/NotoSansCJKsc.zip"
+  local dl_url="https://github.com/notofonts/noto-cjk/releases/download/Sans2.004/08_NotoSansCJKsc.zip"
+
+  mkdir -p "${font_dir}"
+  if [[ -f "${font_file}" ]]; then
+    echo "Using existing PDF font: ${font_file}" >&2
+    echo "${font_file}"
+    return
+  fi
+
+  echo "Downloading Noto CJK SC OTF for PDF export..." >&2
+  download_file "${dl_url}" "${zip_file}"
+  unzip -o "${zip_file}" "NotoSansCJKsc-Regular.otf" -d "${font_dir}"
+  rm -f "${zip_file}"
+
+  if [[ ! -f "${font_file}" ]]; then
+    echo "Failed to prepare PDF font file: ${font_file}" >&2
+    exit 1
+  fi
+  echo "Prepared PDF font: ${font_file}" >&2
+  echo "${font_file}"
 }
 
 if [[ -z "${NODE_BIN}" ]]; then
@@ -85,9 +168,18 @@ if [[ -z "${NODE_BIN}" || "${NODE_MAJOR}" -lt 22 ]]; then
   exit 1
 fi
 
+ensure_base_tools
 mkdir -p "${APP_DIR}"
 tar -xzf "${ARCHIVE_PATH}" -C "${APP_DIR}"
 mkdir -p "${APP_DIR}/data"
+ensure_system_cjk_fonts
+cd "${APP_DIR}"
+if [[ -f "package-lock.json" ]]; then
+  npm ci --omit=dev
+else
+  npm install --omit=dev
+fi
+PDF_FONT_PATH="$(ensure_pdf_font_file)"
 
 UNIT_FILE_CONTENT="[Unit]
 Description=MiniMaths Service
@@ -101,6 +193,7 @@ ExecStart=${NODE_BIN} ${APP_DIR}/server.mjs
 Restart=always
 RestartSec=3
 Environment=NODE_ENV=production
+Environment=PDF_CJK_FONT_PATH=${PDF_FONT_PATH}
 
 [Install]
 WantedBy=multi-user.target

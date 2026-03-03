@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { mkdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import PDFDocument from "pdfkit";
 
 const HOST = "0.0.0.0";
 const PORT = 3000;
@@ -295,6 +296,33 @@ const readNovelChildrenPagedStmt = db.prepare(`
   OFFSET ?
 `);
 
+const readNovelIntegratedStmt = db.prepare(`
+  WITH RECURSIVE chain(
+    id, seq, parent_id, content, votes, author, created_at, depth
+  ) AS (
+    SELECT
+      id, seq, parent_id, content, votes, author, created_at, 0
+    FROM novel_contents
+    WHERE id = ?
+    UNION ALL
+    SELECT
+      n.id, n.seq, n.parent_id, n.content, n.votes, n.author, n.created_at, c.depth + 1
+    FROM novel_contents n
+    JOIN chain c ON c.parent_id = n.id
+    WHERE c.depth + 1 < ?
+  )
+  SELECT
+    id,
+    seq,
+    parent_id AS parentId,
+    content,
+    votes,
+    author,
+    created_at AS createdAt
+  FROM chain
+  ORDER BY depth DESC
+`);
+
 const readNovelRecentLikeStmt = db.prepare(`
   SELECT liked_at AS likedAt
   FROM novel_like_logs
@@ -379,6 +407,123 @@ function badRequest(res, message) {
 
 function notFound(res) {
   json(res, 404, { error: "Not found" });
+}
+
+function safePdfTitle(rawTitle) {
+  if (typeof rawTitle !== "string") return "novel";
+  const title = rawTitle.trim().slice(0, 40);
+  if (!title) return "novel";
+  return title.replace(/[\\/:*?"<>|]/g, "_");
+}
+
+function fileExists(path) {
+  try {
+    statSync(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function findPdfFontPath() {
+  const envPath = process.env.PDF_CJK_FONT_PATH;
+  if (typeof envPath === "string" && envPath.trim()) {
+    const normalized = envPath.trim();
+    console.log("[pdf] PDF_CJK_FONT_PATH set to:", JSON.stringify(normalized));
+    try {
+      statSync(normalized);
+      console.log("[pdf] Using font from PDF_CJK_FONT_PATH:", normalized);
+      return normalized;
+    } catch (error) {
+      console.error(
+        "[pdf] PDF_CJK_FONT_PATH exists check failed:",
+        normalized,
+        "-",
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  } else {
+    console.log("[pdf] PDF_CJK_FONT_PATH is empty");
+  }
+  const candidates = [
+    "/System/Library/Fonts/Hiragino Sans GB.ttc",
+    "/System/Library/Fonts/STHeiti Medium.ttc",
+    "/System/Library/Fonts/STHeiti Light.ttc",
+    "/System/Library/Fonts/Hiragino Sans GB W3.ttc",
+    "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/opentype/noto-cjk/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+    "/usr/share/fonts/wenquanyi/wqy-zenhei/wqy-zenhei.ttc",
+    "/System/Library/Fonts/PingFang.ttc",
+  ];
+  for (const path of candidates) {
+    if (fileExists(path)) {
+      console.log("[pdf] Using fallback font path:", path);
+      return path;
+    }
+  }
+  console.error("[pdf] No available CJK font path found. Candidates checked:", candidates);
+  return "";
+}
+
+function sendIntegratedPdf(res, title, items) {
+  const filename = safePdfTitle(title) + ".pdf";
+  const chunks = [];
+  console.log("[pdf] Generating integrated PDF. Title:", JSON.stringify(title), "Items:", items.length);
+  const fontPath = findPdfFontPath();
+  if (!fontPath) {
+    json(res, 500, {
+      error:
+        "Missing CJK font on server. Please install Noto CJK fonts or set PDF_CJK_FONT_PATH.",
+    });
+    return;
+  }
+  const doc = new PDFDocument({
+    size: "A4",
+    margins: { top: 48, bottom: 48, left: 48, right: 48 },
+  });
+
+  doc.on("data", (chunk) => chunks.push(chunk));
+  doc.on("end", () => {
+    const pdf = Buffer.concat(chunks);
+    res.writeHead(200, {
+      "Content-Type": "application/pdf",
+      "Content-Length": pdf.length,
+      "Content-Disposition": `attachment; filename="${encodeURIComponent(filename)}"`,
+      "Cache-Control": "no-store",
+    });
+    res.end(pdf);
+  });
+
+  try {
+    doc.font(fontPath);
+    console.log("[pdf] Font loaded successfully:", fontPath);
+  } catch (error) {
+    console.error(
+      "[pdf] doc.font(...) failed. fontPath:",
+      fontPath,
+      "error:",
+      error instanceof Error ? error.stack || error.message : String(error),
+    );
+    json(res, 500, {
+      error:
+        "CJK font load failed. Please install another CJK font and set PDF_CJK_FONT_PATH.",
+    });
+    return;
+  }
+  doc.fontSize(18).text(title || "Novel", { align: "center" });
+  doc.moveDown(1);
+  doc.fontSize(12);
+  for (const item of items) {
+    const content = String(item?.content || "").trim();
+    if (!content) continue;
+    doc.text(content, { align: "left" });
+    doc.moveDown(1);
+  }
+  doc.end();
 }
 
 function getClientIp(req) {
@@ -749,6 +894,35 @@ async function handleApi(req, res, pathname) {
     return true;
   }
 
+  if (req.method === "GET" && pathname === "/api/novel/integrated") {
+    const query = new URL(req.url || "/", `http://${HOST}:${PORT}`).searchParams;
+    const id = Number(query.get("id"));
+    const limit = Number(query.get("limit"));
+    const safeLimit = Number.isInteger(limit) && limit > 0 ? Math.min(limit, 100) : 100;
+    if (!Number.isInteger(id) || id <= 0) {
+      badRequest(res, "Invalid novel id");
+      return true;
+    }
+    const items = readNovelIntegratedStmt.all(id, safeLimit);
+    json(res, 200, { items });
+    return true;
+  }
+
+  if (req.method === "GET" && pathname === "/api/novel/integrated.pdf") {
+    const query = new URL(req.url || "/", `http://${HOST}:${PORT}`).searchParams;
+    const id = Number(query.get("id"));
+    const limit = Number(query.get("limit"));
+    const title = query.get("title") || "Novel";
+    const safeLimit = Number.isInteger(limit) && limit > 0 ? Math.min(limit, 100) : 100;
+    if (!Number.isInteger(id) || id <= 0) {
+      badRequest(res, "Invalid novel id");
+      return true;
+    }
+    const items = readNovelIntegratedStmt.all(id, safeLimit);
+    sendIntegratedPdf(res, title, items);
+    return true;
+  }
+
   if (req.method === "POST" && pathname === "/api/novel/like") {
     const body = JSON.parse((await readBody(req)) || "{}");
     const id = Number(body.id);
@@ -856,6 +1030,10 @@ createServer(async (req, res) => {
       sendFile(res, "novel.js");
       return;
     }
+    if (pathname === "/nav-loader.js") {
+      sendFile(res, "nav-loader.js");
+      return;
+    }
     if (pathname === "/xiaoguwen.js") {
       sendFile(res, "xiaoguwen.js");
       return;
@@ -893,4 +1071,5 @@ createServer(async (req, res) => {
 }).listen(PORT, HOST, () => {
   console.log(`MiniMaths running: http://${HOST}:${PORT}`);
   console.log(`SQLite file: ${join("data", "minimaths.db")}`);
+  console.log("[pdf] Startup PDF_CJK_FONT_PATH =", JSON.stringify(process.env.PDF_CJK_FONT_PATH || ""));
 });

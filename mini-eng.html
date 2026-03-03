@@ -239,10 +239,6 @@
         font-weight: 700;
       }
 
-      .nav-button-hidden {
-        opacity: 0;
-      }
-
       @media (max-width: 420px) {
         .scores {
           grid-template-columns: 1fr;
@@ -312,16 +308,7 @@
       <button class="btn" id="settings-close-btn">关闭</button>
     </section>
 
-    <section class="nav-page" id="nav-page">
-      <h2 class="header-title">导航</h2>
-      <div class="nav-actions">
-        <button class="btn nav-button" id="nav-minimaths-btn">minimaths</button>
-        <button class="btn nav-button" id="nav-mini-eng-btn">miniEng</button>
-        <button class="btn nav-button" id="nav-xiaoguwen-btn">小古文</button>
-        <button class="btn nav-button nav-button-hidden" id="nav-novel-btn">novel</button>
-      </div>
-      <button class="btn" id="nav-close-btn">返回</button>
-    </section>
+    <script src="/nav-loader.js" data-nav-variant="app"></script>
     <script type="module" src="/mini-eng.js"></script>
   </body>
 </html>

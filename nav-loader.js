@@ -1,0 +1,45 @@
+(function () {
+  const script = document.currentScript;
+  if (!script) return;
+  const variant = script.dataset.navVariant || "index";
+
+  const templates = {
+    index: `
+<section class="nav-page" id="nav-page">
+  <h2 class="nav-title">导航</h2>
+  <div class="nav-actions">
+    <button class="nav-button" id="nav-minimaths">minimaths</button>
+    <button class="nav-button" id="nav-mini-eng">miniEng</button>
+    <button class="nav-button" id="nav-xiaoguwen">小古文</button>
+    <button class="nav-button" id="nav-novel">novel</button>
+  </div>
+  <div class="settings-actions">
+    <button class="settings-action" id="nav-close">返回</button>
+  </div>
+</section>`,
+    app: `
+<section class="nav-page" id="nav-page">
+  <h2 class="header-title">导航</h2>
+  <div class="nav-actions">
+    <button class="btn nav-button" id="nav-minimaths-btn">minimaths</button>
+    <button class="btn nav-button" id="nav-mini-eng-btn">miniEng</button>
+    <button class="btn nav-button" id="nav-xiaoguwen-btn">小古文</button>
+    <button class="btn nav-button" id="nav-novel-btn">novel</button>
+  </div>
+  <button class="btn" id="nav-close-btn">返回</button>
+</section>`,
+    novel: `
+<section class="nav-page" id="nav-page">
+  <h2 class="settings-title">导航</h2>
+  <div class="nav-actions">
+    <button class="btn nav-button" id="nav-minimaths-btn">minimaths</button>
+    <button class="btn nav-button" id="nav-mini-eng-btn">miniEng</button>
+    <button class="btn nav-button" id="nav-xiaoguwen-btn">小古文</button>
+    <button class="btn nav-button" id="nav-novel-btn">novel</button>
+  </div>
+  <button class="btn" id="nav-close-btn">返回</button>
+</section>`,
+  };
+
+  script.insertAdjacentHTML("beforebegin", templates[variant] || templates.index);
+})();
