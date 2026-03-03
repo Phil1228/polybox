@@ -17,6 +17,11 @@ const navMinimathsBtn = document.getElementById("nav-minimaths-btn");
 const navMiniEngBtn = document.getElementById("nav-mini-eng-btn");
 const navXiaoguwenBtn = document.getElementById("nav-xiaoguwen-btn");
 const navCloseBtn = document.getElementById("nav-close-btn");
+const aiProviderSelect = document.getElementById("ai-provider");
+const aiKeyInput = document.getElementById("ai-key");
+const settingsSaveBtn = document.getElementById("settings-save-btn");
+
+const MINI_ENG_AI_COOKIE = "mini_eng_ai_config";
 
 const TOPICS = [
   "What is your favorite food and why?",
@@ -38,6 +43,42 @@ let transcriptInterim = "";
 let latestConfidence = 0;
 let isRecording = false;
 let stopTimer = null;
+let aiConfig = {
+  provider: "openai",
+  key: "",
+};
+
+function getCookieValue(key) {
+  const cookieText = document.cookie || "";
+  const parts = cookieText.split(";");
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (trimmed.startsWith(key + "=")) return decodeURIComponent(trimmed.slice(key.length + 1));
+  }
+  return "";
+}
+
+function setCookieValue(key, value, days) {
+  const maxAge = Math.max(0, Math.floor(days * 24 * 60 * 60));
+  document.cookie =
+    key + "=" + encodeURIComponent(value) + "; Max-Age=" + maxAge + "; Path=/; SameSite=Lax";
+}
+
+function loadAiConfigFromCookie() {
+  const raw = getCookieValue(MINI_ENG_AI_COOKIE);
+  if (!raw) return;
+  try {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed?.provider === "string") aiConfig.provider = parsed.provider;
+    if (typeof parsed?.key === "string") aiConfig.key = parsed.key;
+  } catch {
+    // ignore parse errors
+  }
+}
+
+function saveAiConfigToCookie() {
+  setCookieValue(MINI_ENG_AI_COOKIE, JSON.stringify(aiConfig), 365);
+}
 
 function randomTopic() {
   const idx = Math.floor(Math.random() * TOPICS.length);
@@ -50,6 +91,8 @@ function setQuestion(topic) {
 }
 
 function openSettings() {
+  aiProviderSelect.value = aiConfig.provider || "openai";
+  aiKeyInput.value = aiConfig.key || "";
   settingsPage.classList.add("is-open");
 }
 
@@ -121,12 +164,19 @@ async function evaluateAnswer() {
         question: currentQuestion,
         answer: finalAnswer,
         recognitionConfidence: latestConfidence,
+        aiConfig: {
+          provider: aiConfig.provider,
+          key: aiConfig.key,
+        },
       }),
     });
     if (!resp.ok) throw new Error("evaluate failed");
     const data = await resp.json();
     setScoreView(data);
     voiceStatus.textContent = "评分完成";
+    if (!aiConfig.key.trim()) {
+      voiceStatus.textContent = "评分完成（当前未配置 Key，使用本地兜底评分）";
+    }
   } catch (error) {
     voiceStatus.textContent = "评分失败，请稍后再试";
   } finally {
@@ -220,6 +270,16 @@ settingsCloseBtn.addEventListener("click", () => {
   closeSettings();
 });
 
+settingsSaveBtn.addEventListener("click", () => {
+  aiConfig = {
+    provider: aiProviderSelect.value || "openai",
+    key: aiKeyInput.value.trim(),
+  };
+  saveAiConfigToCookie();
+  closeSettings();
+  voiceStatus.textContent = aiConfig.key ? "AI 配置已保存" : "已保存（未填写 Key 时将使用兜底评分）";
+});
+
 settingsMoreBtn.addEventListener("click", () => {
   openNav();
 });
@@ -241,4 +301,5 @@ navXiaoguwenBtn.addEventListener("click", () => {
   window.location.href = "/xiaoguwen.html";
 });
 
+loadAiConfigFromCookie();
 setQuestion(randomTopic());

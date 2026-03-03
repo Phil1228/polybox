@@ -194,6 +194,37 @@
         font-weight: 700;
       }
 
+      .setting-item {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+      }
+
+      .setting-label {
+        font-size: 14px;
+        color: #5d6472;
+        margin-bottom: 6px;
+      }
+
+      .setting-input,
+      .setting-select {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        min-height: 42px;
+        padding: 0 10px;
+        font-size: 15px;
+        background: #fff;
+        color: var(--text);
+      }
+
+      .setting-tip {
+        margin-top: 6px;
+        font-size: 12px;
+        color: #76808f;
+      }
+
       .nav-actions {
         margin: auto 0;
         display: flex;
@@ -260,9 +291,20 @@
         <h2 class="header-title">设置</h2>
         <button class="btn" id="settings-more-btn">more</button>
       </div>
-      <section class="card">
-        <p class="hint">miniEng 设置项待开发</p>
+      <section class="setting-item">
+        <div class="setting-label">大模型提供者</div>
+        <select class="setting-select" id="ai-provider">
+          <option value="openai">OpenAI</option>
+          <option value="deepseek">DeepSeek</option>
+          <option value="qwen">Qwen</option>
+        </select>
       </section>
+      <section class="setting-item">
+        <div class="setting-label">API Key</div>
+        <input class="setting-input" id="ai-key" type="password" placeholder="请输入 API Key" />
+        <div class="setting-tip">仅保存到当前浏览器，不会写入服务器数据库。</div>
+      </section>
+      <button class="btn primary" id="settings-save-btn">保存</button>
       <button class="btn" id="settings-close-btn">关闭</button>
     </section>
 

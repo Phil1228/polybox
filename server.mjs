@@ -324,12 +324,49 @@ function heuristicMiniEngEvaluation(question, answer, recognitionConfidence) {
   };
 }
 
-async function aiMiniEngEvaluation(question, answer, recognitionConfidence) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return null;
+function getProviderConfig(provider) {
+  if (provider === "openai") {
+    return { baseUrl: "https://api.openai.com/v1", model: "gpt-4o-mini" };
+  }
+  if (provider === "deepseek") {
+    return { baseUrl: "https://api.deepseek.com/v1", model: "deepseek-chat" };
+  }
+  if (provider === "qwen") {
+    return { baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1", model: "qwen-plus" };
+  }
+  return null;
+}
 
-  const baseUrl = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
-  const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+function parseJsonFromText(text) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}");
+    if (start >= 0 && end > start) {
+      return JSON.parse(text.slice(start, end + 1));
+    }
+    throw new Error("No JSON found in AI response");
+  }
+}
+
+async function aiMiniEngEvaluation(question, answer, recognitionConfidence, aiConfig) {
+  const provider = typeof aiConfig?.provider === "string" ? aiConfig.provider : "";
+  const keyFromRequest = typeof aiConfig?.key === "string" ? aiConfig.key.trim() : "";
+  const providerPreset = getProviderConfig(provider);
+
+  let apiKey = keyFromRequest;
+  let baseUrl = providerPreset?.baseUrl;
+  let model = providerPreset?.model;
+
+  // Backward compatibility: if request has no config, still support env-based OpenAI.
+  if (!apiKey) {
+    apiKey = process.env.OPENAI_API_KEY || "";
+    baseUrl = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
+    model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+  }
+
+  if (!apiKey) return null;
 
   const prompt =
     "You are an English speaking coach.\n" +
@@ -354,10 +391,9 @@ async function aiMiniEngEvaluation(question, answer, recognitionConfidence) {
         }),
       },
     ],
-    response_format: { type: "json_object" },
   };
 
-  const response = await fetch(baseUrl.replace(/\/$/, "") + "/chat/completions", {
+  const response = await fetch(String(baseUrl).replace(/\/$/, "") + "/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -374,7 +410,7 @@ async function aiMiniEngEvaluation(question, answer, recognitionConfidence) {
   const content = data?.choices?.[0]?.message?.content;
   if (!content || typeof content !== "string") throw new Error("Empty AI content");
 
-  const parsed = JSON.parse(content);
+  const parsed = parseJsonFromText(content);
   const grammar = clampScore(parsed?.scores?.grammar);
   const pronunciation = clampScore(parsed?.scores?.pronunciation);
   const expression = clampScore(parsed?.scores?.expression);
@@ -389,7 +425,7 @@ async function aiMiniEngEvaluation(question, answer, recognitionConfidence) {
       overall: String(parsed?.feedback?.overall || ""),
     },
     improvedAnswer: String(parsed?.improvedAnswer || ""),
-    source: "ai",
+    source: provider || "openai_env",
   };
 }
 
@@ -491,7 +527,7 @@ async function handleApi(req, res, pathname) {
     }
 
     try {
-      const aiResult = await aiMiniEngEvaluation(question, answer, recognitionConfidence);
+      const aiResult = await aiMiniEngEvaluation(question, answer, recognitionConfidence, body.aiConfig);
       if (aiResult) {
         json(res, 200, aiResult);
         return true;
