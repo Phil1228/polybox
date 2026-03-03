@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="MiniMaths icon">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1f5de3"/>
+      <stop offset="1" stop-color="#6bb6ff"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1b60e6"/>
+      <stop offset="1" stop-color="#5ea6ff"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#1d3f85" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect x="92" y="108" width="328" height="296" rx="50" fill="#f9fbff" filter="url(#shadow)"/>
+  <rect x="140" y="146" width="232" height="60" rx="20" fill="url(#screen)"/>
+  <text x="256" y="186" text-anchor="middle" font-size="44" font-family="Arial, sans-serif" font-weight="700" fill="#ffffff">12+34</text>
+
+  <g transform="translate(0,8)" stroke-linecap="round">
+    <g fill="#f8d65c" stroke="#d6b443" stroke-width="3">
+      <rect x="170" y="238" width="42" height="92" rx="16"/>
+      <rect x="145" y="263" width="92" height="42" rx="16"/>
+    </g>
+
+    <g fill="#86e0c3" stroke="#60c5a5" stroke-width="3">
+      <rect x="275" y="264" width="92" height="40" rx="16"/>
+    </g>
+
+    <g fill="#ff8c7d" stroke="#e06f61" stroke-width="3">
+      <rect x="164" y="333" width="42" height="92" rx="16" transform="rotate(-45 185 379)"/>
+      <rect x="164" y="333" width="42" height="92" rx="16" transform="rotate(45 185 379)"/>
+    </g>
+
+    <g fill="#a384f5" stroke="#8669da" stroke-width="3">
+      <rect x="275" y="353" width="92" height="22" rx="11"/>
+      <circle cx="321" cy="336" r="11"/>
+      <circle cx="321" cy="392" r="11"/>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#2f6fff" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="MiniMaths" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
+    <link rel="icon" type="image/svg+xml" href="/minimaths-icon.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <title>两位数加法练习</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f4f6fb;
+        --card: #ffffff;
+        --text: #1a1a1a;
+        --line: #5d6472;
+        --btn: #ffffff;
+        --btn-border: #d7dce7;
+        --btn-active: #e9eef8;
+      }
+
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        min-height: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+
+      body {
+        display: flex;
+        justify-content: center;
+      }
+
+      .app {
+        width: 100%;
+        max-width: 980px;
+        min-height: 100dvh;
+        padding: clamp(10px, 3vw, 20px) clamp(10px, 3.6vw, 16px) calc(12px + env(safe-area-inset-bottom));
+        display: flex;
+        flex-direction: column;
+        gap: clamp(10px, 2.8vw, 16px);
+      }
+
+      .toolbar {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+      }
+
+      .history-toggle {
+        display: none;
+        border: 1px solid var(--btn-border);
+        border-radius: 10px;
+        background: var(--card);
+        color: var(--text);
+        padding: 8px 12px;
+        font-size: 14px;
+        font-weight: 600;
+        box-shadow: 0 4px 16px rgba(21, 35, 63, 0.08);
+      }
+
+      .settings-toggle {
+        border: 1px solid var(--btn-border);
+        border-radius: 10px;
+        background: var(--card);
+        color: var(--text);
+        padding: 8px 12px;
+        font-size: 14px;
+        font-weight: 600;
+        box-shadow: 0 4px 16px rgba(21, 35, 63, 0.08);
+        touch-action: manipulation;
+        justify-self: start;
+      }
+
+      .leaderboard-toggle {
+        border: 1px solid var(--btn-border);
+        border-radius: 10px;
+        background: var(--card);
+        color: var(--text);
+        padding: 8px 12px;
+        font-size: 14px;
+        font-weight: 600;
+        box-shadow: 0 4px 16px rgba(21, 35, 63, 0.08);
+        touch-action: manipulation;
+        justify-self: center;
+      }
+
+      .top-layout {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: clamp(10px, 2.8vw, 16px);
+      }
+
+      .question-card {
+        background: var(--card);
+        border-radius: 16px;
+        padding: clamp(14px, 4vw, 24px) clamp(12px, 3.2vw, 16px);
+        min-height: clamp(130px, 30vw, 180px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 8px 24px rgba(21, 35, 63, 0.08);
+        overflow: hidden;
+      }
+
+      .history-card {
+        background: var(--card);
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: 0 8px 24px rgba(21, 35, 63, 0.08);
+        display: flex;
+        flex-direction: column;
+        min-height: 180px;
+      }
+
+      .history-overlay {
+        display: none;
+      }
+
+      .history-title {
+        margin: 0 0 10px;
+        font-size: 18px;
+        font-weight: 700;
+      }
+
+      .history-list {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        overflow: auto;
+      }
+
+      .history-item {
+        border: 1px solid var(--btn-border);
+        border-radius: 10px;
+        padding: 8px 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .history-equation {
+        font-size: 16px;
+        font-weight: 600;
+      }
+
+      .history-time {
+        font-size: 14px;
+        color: #666d7a;
+      }
+
+      .equation {
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: clamp(4px, 1.8vw, 8px);
+        font-size: clamp(24px, 8vw, 52px);
+        font-weight: 700;
+        line-height: 1.15;
+        text-align: center;
+      }
+
+      .answer {
+        min-width: clamp(2.1em, 20vw, 2.6em);
+        text-align: center;
+        border-bottom: 4px solid var(--line);
+        padding-bottom: 6px;
+      }
+
+      .expression-text {
+        white-space: normal;
+        word-break: break-word;
+      }
+
+      .keyboard {
+        margin-top: auto;
+        background: var(--card);
+        border-radius: 16px;
+        padding: clamp(8px, 2.4vw, 12px);
+        box-shadow: 0 8px 24px rgba(21, 35, 63, 0.08);
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: clamp(8px, 2.2vw, 10px);
+      }
+
+      .key {
+        border: 1px solid var(--btn-border);
+        border-radius: 12px;
+        min-height: clamp(52px, 13vw, 64px);
+        font-size: clamp(24px, 6.4vw, 28px);
+        font-weight: 600;
+        background: var(--btn);
+        color: var(--text);
+        touch-action: manipulation;
+      }
+
+      .key:active {
+        background: var(--btn-active);
+      }
+
+      .key[data-action="backspace"] {
+        font-size: 24px;
+        grid-column: span 2;
+      }
+
+      .settings-page {
+        position: fixed;
+        inset: 0;
+        z-index: 60;
+        background: var(--bg);
+        padding: 20px 16px calc(16px + env(safe-area-inset-bottom));
+        display: none;
+        flex-direction: column;
+        gap: 14px;
+        overflow: auto;
+      }
+
+      .settings-page.is-open {
+        display: flex;
+      }
+
+      .settings-title {
+        margin: 4px 0 8px;
+        font-size: 22px;
+        font-weight: 700;
+      }
+
+      .setting-item {
+        background: var(--card);
+        border-radius: 12px;
+        padding: 12px;
+        box-shadow: 0 8px 24px rgba(21, 35, 63, 0.08);
+      }
+
+      .setting-label {
+        font-size: 14px;
+        color: #5d6472;
+        margin-bottom: 8px;
+      }
+
+      .setting-control {
+        width: 100%;
+        border: 1px solid var(--btn-border);
+        border-radius: 10px;
+        min-height: 42px;
+        padding: 0 10px;
+        font-size: 16px;
+        background: #fff;
+        color: var(--text);
+      }
+
+      .setting-options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .setting-option-btn {
+        border: 1px solid var(--btn-border);
+        border-radius: 999px;
+        background: #fff;
+        color: var(--text);
+        font-size: clamp(12px, 2.8vw, 13px);
+        line-height: 1;
+        min-height: 30px;
+        padding: 0 clamp(8px, 2.2vw, 10px);
+        white-space: nowrap;
+      }
+
+      .setting-option-btn.is-active {
+        background: #2f6fff;
+        border-color: #2f6fff;
+        color: #fff;
+      }
+
+      .settings-actions {
+        margin-top: auto;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .settings-action {
+        border: 1px solid var(--btn-border);
+        border-radius: 10px;
+        min-height: 46px;
+        font-size: 16px;
+        font-weight: 600;
+        background: #fff;
+      }
+
+      .settings-action.primary {
+        background: #2f6fff;
+        border-color: #2f6fff;
+        color: #fff;
+      }
+
+      .leaderboard-page {
+        position: fixed;
+        inset: 0;
+        z-index: 70;
+        background: var(--bg);
+        padding: 20px 16px calc(16px + env(safe-area-inset-bottom));
+        display: none;
+        flex-direction: column;
+        gap: 12px;
+        overflow: auto;
+      }
+
+      .leaderboard-page.is-open {
+        display: flex;
+      }
+
+      .leaderboard-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .leaderboard-group {
+        background: var(--card);
+        border-radius: 12px;
+        padding: 10px 10px 8px;
+        box-shadow: 0 8px 24px rgba(21, 35, 63, 0.08);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .leaderboard-group-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: #2f6fff;
+      }
+
+      .leaderboard-item {
+        border: 1px solid var(--btn-border);
+        border-radius: 10px;
+        padding: 8px 10px;
+        display: grid;
+        grid-template-columns: auto 1fr auto auto;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .leaderboard-rank {
+        font-size: 13px;
+        font-weight: 700;
+        color: #5d6472;
+        min-width: 2.2em;
+      }
+
+      .leaderboard-user {
+        font-size: 16px;
+        font-weight: 600;
+      }
+
+      .leaderboard-time {
+        font-size: 14px;
+        color: #5d6472;
+      }
+
+      .leaderboard-detail-btn {
+        border: 1px solid var(--btn-border);
+        border-radius: 999px;
+        background: #fff;
+        min-height: 30px;
+        padding: 0 10px;
+        font-size: 13px;
+      }
+
+      .leaderboard-empty {
+        background: var(--card);
+        border-radius: 12px;
+        padding: 16px;
+        color: #5d6472;
+        text-align: center;
+      }
+
+      .detail-page {
+        position: fixed;
+        inset: 0;
+        z-index: 80;
+        background: var(--bg);
+        padding: 20px 16px calc(16px + env(safe-area-inset-bottom));
+        display: none;
+        flex-direction: column;
+        gap: 12px;
+        overflow: auto;
+      }
+
+      .detail-page.is-open {
+        display: flex;
+      }
+
+      .detail-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .detail-title {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 700;
+      }
+
+      .congrats-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 90;
+        background: rgba(0, 0, 0, 0.28);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+      }
+
+      .congrats-overlay.is-open {
+        display: flex;
+      }
+
+      .congrats-card {
+        width: min(92vw, 360px);
+        background: var(--card);
+        border-radius: 14px;
+        box-shadow: 0 12px 30px rgba(21, 35, 63, 0.18);
+        padding: 18px 14px;
+        text-align: center;
+      }
+
+      .congrats-title {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 700;
+      }
+
+      .congrats-subtitle {
+        margin: 8px 0 0;
+        font-size: 14px;
+        color: #5d6472;
+      }
+
+      @media (max-width: 760px) {
+        .top-layout {
+          grid-template-columns: 1fr;
+        }
+
+        .history-toggle {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          touch-action: manipulation;
+          z-index: 35;
+          justify-self: end;
+        }
+
+        .history-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0);
+          z-index: 20;
+        }
+
+        .history-overlay.is-open {
+          display: block;
+        }
+
+        .history-card {
+          position: fixed;
+          top: clamp(52px, 14vw, 64px);
+          right: clamp(10px, 3.6vw, 16px);
+          width: min(84vw, 320px);
+          max-height: 64dvh;
+          min-height: 120px;
+          z-index: 30;
+          opacity: 0;
+          pointer-events: none;
+          transform: translateY(-8px);
+          transition: opacity 0.16s ease, transform 0.16s ease;
+        }
+
+        .history-card.is-open {
+          opacity: 1;
+          pointer-events: auto;
+          transform: translateY(0);
+        }
+      }
+
+      @media (min-width: 900px) {
+        .settings-page {
+          max-width: 680px;
+          margin: 0 auto;
+        }
+      }
+
+      @media (max-width: 360px) {
+        .settings-actions {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <section class="toolbar">
+        <button class="settings-toggle" id="settings-toggle">设置</button>
+        <button class="leaderboard-toggle" id="leaderboard-toggle">排行榜</button>
+        <button class="history-toggle" id="history-toggle" aria-expanded="false">历史</button>
+      </section>
+
+      <section class="top-layout">
+        <section class="question-card">
+          <div class="equation">
+            <span class="expression-text" id="expression-text">12 + 34</span>
+            <span>=</span>
+            <span class="answer" id="answer-display">&nbsp;</span>
+          </div>
+        </section>
+
+        <aside class="history-card">
+          <h2 class="history-title">历史记录</h2>
+          <ul class="history-list" id="history-list"></ul>
+        </aside>
+      </section>
+
+      <section class="keyboard" id="keyboard">
+        <button class="key" data-num="1">1</button>
+        <button class="key" data-num="2">2</button>
+        <button class="key" data-num="3">3</button>
+        <button class="key" data-num="4">4</button>
+        <button class="key" data-num="5">5</button>
+        <button class="key" data-num="6">6</button>
+        <button class="key" data-num="7">7</button>
+        <button class="key" data-num="8">8</button>
+        <button class="key" data-num="9">9</button>
+        <button class="key" data-num="0">0</button>
+        <button class="key" data-action="backspace">⌫</button>
+      </section>
+    </main>
+    <div class="history-overlay" id="history-overlay"></div>
+
+    <section class="settings-page" id="settings-page">
+      <h2 class="settings-title">设置</h2>
+
+      <div class="setting-item">
+        <div class="setting-label">用户名</div>
+        <input class="setting-control" id="setting-username" maxlength="10" placeholder="请输入用户名" />
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-label">题目类型</div>
+        <div class="setting-options" data-setting-group="problemType">
+          <button class="setting-option-btn" data-value="add">加</button>
+          <button class="setting-option-btn" data-value="subtract">减</button>
+          <button class="setting-option-btn" data-value="multiply">乘</button>
+          <button class="setting-option-btn" data-value="divide">除</button>
+          <button class="setting-option-btn" data-value="addsubtract">加减</button>
+          <button class="setting-option-btn" data-value="all">四则运算</button>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-label">数字位数</div>
+        <div class="setting-options" data-setting-group="digitCount">
+          <button class="setting-option-btn" data-value="1">一位</button>
+          <button class="setting-option-btn" data-value="2">两位</button>
+          <button class="setting-option-btn" data-value="3">三位</button>
+          <button class="setting-option-btn" data-value="4">四位</button>
+          <button class="setting-option-btn" data-value="5">五位</button>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-label">数字个数</div>
+        <div class="setting-options" data-setting-group="operandCount">
+          <button class="setting-option-btn" data-value="2">2</button>
+          <button class="setting-option-btn" data-value="3">3</button>
+          <button class="setting-option-btn" data-value="4">4</button>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-label">题目个数</div>
+        <div class="setting-options" data-setting-group="questionCount">
+          <button class="setting-option-btn" data-value="10">10</button>
+          <button class="setting-option-btn" data-value="20">20</button>
+          <button class="setting-option-btn" data-value="30">30</button>
+          <button class="setting-option-btn" data-value="40">40</button>
+        </div>
+      </div>
+
+      <div class="settings-actions">
+        <button class="settings-action primary" id="settings-confirm">确定</button>
+        <button class="settings-action" id="settings-cancel">取消</button>
+      </div>
+    </section>
+
+    <section class="leaderboard-page" id="leaderboard-page">
+      <h2 class="settings-title">排行榜</h2>
+      <ul class="leaderboard-list" id="leaderboard-list"></ul>
+      <div class="settings-actions">
+        <button class="settings-action" id="leaderboard-close">再来一次</button>
+      </div>
+    </section>
+
+    <section class="detail-page" id="detail-page">
+      <div class="detail-header">
+        <h2 class="detail-title" id="detail-title">详情</h2>
+        <button class="settings-action" id="detail-close">返回</button>
+      </div>
+      <ul class="history-list" id="detail-history-list"></ul>
+    </section>
+
+    <div class="congrats-overlay" id="congrats-overlay">
+      <div class="congrats-card">
+        <h3 class="congrats-title">恭喜完成！</h3>
+        <p class="congrats-subtitle">2秒后跳转到排行榜</p>
+      </div>
+    </div>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
