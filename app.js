@@ -656,5 +656,11 @@ navXiaoguwen.addEventListener("click", () => {
   window.location.href = "/xiaoguwen.html";
 });
 
+const initParams = new URLSearchParams(window.location.search);
+if (initParams.get("openNav") === "1") {
+  openNavPage();
+}
+document.documentElement.classList.remove("open-nav-init");
+
 await bootstrapFromDb();
 nextQuestion();

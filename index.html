@@ -3,6 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <script>
+      (function () {
+        if (new URLSearchParams(window.location.search).get("openNav") === "1") {
+          document.documentElement.classList.add("open-nav-init");
+        }
+      })();
+    </script>
     <meta name="theme-color" content="#2f6fff" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="MiniMaths" />
@@ -43,6 +50,10 @@
       body {
         display: flex;
         justify-content: center;
+      }
+
+      .open-nav-init .app {
+        visibility: hidden;
       }
 
       .app {
