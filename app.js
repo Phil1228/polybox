@@ -8,6 +8,7 @@ const historyOverlay = document.getElementById("history-overlay");
 const settingsToggle = document.getElementById("settings-toggle");
 const leaderboardToggle = document.getElementById("leaderboard-toggle");
 const settingsPage = document.getElementById("settings-page");
+const settingsMore = document.getElementById("settings-more");
 const leaderboardPage = document.getElementById("leaderboard-page");
 const leaderboardList = document.getElementById("leaderboard-list");
 const leaderboardClose = document.getElementById("leaderboard-close");
@@ -15,6 +16,10 @@ const detailPage = document.getElementById("detail-page");
 const detailTitle = document.getElementById("detail-title");
 const detailHistoryList = document.getElementById("detail-history-list");
 const detailClose = document.getElementById("detail-close");
+const navPage = document.getElementById("nav-page");
+const navClose = document.getElementById("nav-close");
+const navMinimaths = document.getElementById("nav-minimaths");
+const navMiniEng = document.getElementById("nav-mini-eng");
 const congratsOverlay = document.getElementById("congrats-overlay");
 const settingUsername = document.getElementById("setting-username");
 const settingOptionGroups = document.querySelectorAll("[data-setting-group]");
@@ -354,6 +359,14 @@ function closeSettings() {
   settingsPage.classList.remove("is-open");
 }
 
+function openNavPage() {
+  navPage.classList.add("is-open");
+}
+
+function closeNavPage() {
+  navPage.classList.remove("is-open");
+}
+
 async function refreshLeaderboardFromDb() {
   const data = await apiRequest("/api/leaderboard");
   leaderboardGroups.length = 0;
@@ -559,6 +572,10 @@ settingsCancel.addEventListener("click", () => {
   closeSettings();
 });
 
+settingsMore.addEventListener("click", () => {
+  openNavPage();
+});
+
 for (const group of settingOptionGroups) {
   group.addEventListener("click", (event) => {
     const target = event.target;
@@ -617,6 +634,21 @@ leaderboardList.addEventListener("click", async (event) => {
 
 detailClose.addEventListener("click", () => {
   closeDetail();
+});
+
+navClose.addEventListener("click", () => {
+  closeNavPage();
+});
+
+navMinimaths.addEventListener("click", () => {
+  closeNavPage();
+  closeSettings();
+  closeLeaderboard();
+  closeDetail();
+});
+
+navMiniEng.addEventListener("click", () => {
+  window.location.href = "/mini-eng.html";
 });
 
 await bootstrapFromDb();

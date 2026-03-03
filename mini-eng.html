@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>miniEng</title>
+    <style>
+      :root {
+        --bg: #f4f6fb;
+        --card: #ffffff;
+        --text: #1a1a1a;
+        --line: #d7dce7;
+        --primary: #2f6fff;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        min-height: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+
+      body {
+        padding: 16px 14px 24px;
+      }
+
+      .page {
+        width: min(92vw, 620px);
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .toolbar {
+        display: flex;
+        justify-content: flex-start;
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 24px 16px;
+      }
+
+      .title {
+        margin: 0 0 4px;
+        font-size: 26px;
+        font-weight: 700;
+        text-align: center;
+      }
+
+      .hint {
+        margin: 0;
+        text-align: center;
+        color: #566;
+      }
+
+      .question {
+        margin: 10px 0 0;
+        font-size: 24px;
+        font-weight: 700;
+        line-height: 1.3;
+      }
+
+      .row {
+        margin-top: 12px;
+        display: flex;
+        gap: 10px;
+      }
+
+      .row.single {
+        display: block;
+      }
+
+      .btn {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        min-height: 44px;
+        padding: 0 12px;
+        font-size: 16px;
+        font-weight: 600;
+        background: #fff;
+        color: var(--text);
+      }
+
+      .btn.primary {
+        background: var(--primary);
+        border-color: var(--primary);
+        color: #fff;
+      }
+
+      .btn.flex {
+        flex: 1;
+      }
+
+      .btn.recording {
+        background: #ffeded;
+        border-color: #ff8f8f;
+        color: #c22;
+      }
+
+      .status {
+        margin-top: 10px;
+        font-size: 14px;
+        color: #5d6472;
+      }
+
+      .answer-box {
+        margin-top: 10px;
+        padding: 10px;
+        border: 1px dashed var(--line);
+        border-radius: 10px;
+        background: #fafbff;
+        min-height: 72px;
+        font-size: 16px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+      }
+
+      .scores {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+      }
+
+      .score-item {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+      }
+
+      .score-label {
+        font-size: 13px;
+        color: #5d6472;
+      }
+
+      .score-value {
+        margin-top: 4px;
+        font-size: 26px;
+        font-weight: 700;
+      }
+
+      .feedback {
+        margin: 10px 0 0;
+        padding-left: 20px;
+      }
+
+      .feedback li {
+        margin: 6px 0;
+      }
+
+      .loading {
+        margin-top: 10px;
+        color: #2f6fff;
+        font-weight: 600;
+      }
+
+      .settings-page,
+      .nav-page {
+        position: fixed;
+        inset: 0;
+        z-index: 80;
+        background: var(--bg);
+        padding: 20px 16px calc(16px + env(safe-area-inset-bottom));
+        display: none;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .settings-page.is-open,
+      .nav-page.is-open {
+        display: flex;
+      }
+
+      .header-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .header-title {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 700;
+      }
+
+      .nav-actions {
+        margin: auto 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .nav-button {
+        width: 100%;
+        min-height: 56px;
+        font-size: 20px;
+        font-weight: 700;
+      }
+
+      @media (max-width: 420px) {
+        .scores {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="toolbar">
+        <button class="btn" id="settings-btn">设置</button>
+      </section>
+
+      <section class="card">
+        <div class="question" id="question-text">What is your favorite food?</div>
+        <div class="row single">
+          <button class="btn primary" id="voice-btn" style="width: 100%">回答</button>
+        </div>
+        <div class="status" id="voice-status">准备就绪</div>
+        <div class="answer-box" id="answer-text">请点击“回答”并用英文作答</div>
+      </section>
+
+      <section class="card">
+        <h2 class="title" style="font-size: 20px; text-align: left">AI 评分</h2>
+        <div class="scores">
+          <div class="score-item">
+            <div class="score-label">语法</div>
+            <div class="score-value" id="score-grammar">-</div>
+          </div>
+          <div class="score-item">
+            <div class="score-label">发音</div>
+            <div class="score-value" id="score-pronunciation">-</div>
+          </div>
+          <div class="score-item">
+            <div class="score-label">表达</div>
+            <div class="score-value" id="score-expression">-</div>
+          </div>
+          <div class="score-item">
+            <div class="score-label">综合</div>
+            <div class="score-value" id="score-overall">-</div>
+          </div>
+        </div>
+        <div class="loading" id="score-loading" style="display: none">AI 评分中...</div>
+        <ul class="feedback" id="feedback-list"></ul>
+      </section>
+    </main>
+
+    <section class="settings-page" id="settings-page">
+      <div class="header-row">
+        <h2 class="header-title">设置</h2>
+        <button class="btn" id="settings-more-btn">more</button>
+      </div>
+      <section class="card">
+        <p class="hint">miniEng 设置项待开发</p>
+      </section>
+      <button class="btn" id="settings-close-btn">关闭</button>
+    </section>
+
+    <section class="nav-page" id="nav-page">
+      <h2 class="header-title">导航</h2>
+      <div class="nav-actions">
+        <button class="btn nav-button" id="nav-minimaths-btn">minimaths</button>
+        <button class="btn nav-button" id="nav-mini-eng-btn">miniEng</button>
+      </div>
+      <button class="btn" id="nav-close-btn">返回</button>
+    </section>
+    <script type="module" src="/mini-eng.js"></script>
+  </body>
+</html>

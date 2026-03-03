@@ -244,6 +244,23 @@
         font-weight: 700;
       }
 
+      .settings-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .settings-more-btn {
+        border: 1px solid var(--btn-border);
+        border-radius: 999px;
+        min-height: 34px;
+        padding: 0 12px;
+        font-size: 14px;
+        font-weight: 600;
+        background: #fff;
+        color: var(--text);
+      }
+
       .setting-item {
         background: var(--card);
         border-radius: 12px;
@@ -427,6 +444,45 @@
         font-weight: 700;
       }
 
+      .nav-page {
+        position: fixed;
+        inset: 0;
+        z-index: 85;
+        background: var(--bg);
+        padding: 20px 16px calc(16px + env(safe-area-inset-bottom));
+        display: none;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .nav-page.is-open {
+        display: flex;
+      }
+
+      .nav-title {
+        margin: 4px 0;
+        font-size: 22px;
+        font-weight: 700;
+      }
+
+      .nav-actions {
+        margin: auto 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .nav-button {
+        width: 100%;
+        border: 1px solid var(--btn-border);
+        border-radius: 12px;
+        min-height: 56px;
+        font-size: 20px;
+        font-weight: 700;
+        background: #fff;
+        color: var(--text);
+      }
+
       .congrats-overlay {
         position: fixed;
         inset: 0;
@@ -563,7 +619,10 @@
     <div class="history-overlay" id="history-overlay"></div>
 
     <section class="settings-page" id="settings-page">
-      <h2 class="settings-title">设置</h2>
+      <div class="settings-header">
+        <h2 class="settings-title">设置</h2>
+        <button class="settings-more-btn" id="settings-more">more</button>
+      </div>
 
       <div class="setting-item">
         <div class="setting-label">用户名</div>
@@ -632,6 +691,17 @@
         <button class="settings-action" id="detail-close">返回</button>
       </div>
       <ul class="history-list" id="detail-history-list"></ul>
+    </section>
+
+    <section class="nav-page" id="nav-page">
+      <h2 class="nav-title">导航</h2>
+      <div class="nav-actions">
+        <button class="nav-button" id="nav-minimaths">minimaths</button>
+        <button class="nav-button" id="nav-mini-eng">miniEng</button>
+      </div>
+      <div class="settings-actions">
+        <button class="settings-action" id="nav-close">返回</button>
+      </div>
     </section>
 
     <div class="congrats-overlay" id="congrats-overlay">

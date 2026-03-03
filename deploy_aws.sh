@@ -28,7 +28,7 @@ require_cmd sshmgr
 echo "==> Packaging release: ${RELEASE_TAR}"
 tar -C "${LOCAL_ROOT}" \
   -czf "${RELEASE_TAR}" \
-  index.html app.js server.mjs package.json minimaths-icon.svg site.webmanifest icon-192.png icon-512.png apple-touch-icon.png
+  index.html mini-eng.html app.js mini-eng.js server.mjs package.json minimaths-icon.svg site.webmanifest icon-192.png icon-512.png apple-touch-icon.png
 
 echo "==> Preparing remote deploy script"
 TMP_LOCAL_REMOTE_SH="$(mktemp)"
