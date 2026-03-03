@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>小古文</title>
+    <style>
+      :root {
+        --bg: #f4f6fb;
+        --card: #ffffff;
+        --text: #1a1a1a;
+        --line: #d7dce7;
+        --primary: #2f6fff;
+        --ok: #18a058;
+        --bad: #e74c3c;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        min-height: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+
+      body {
+        padding: 16px 14px 24px;
+      }
+
+      .page {
+        width: min(94vw, 680px);
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .toolbar {
+        display: flex;
+        gap: 10px;
+      }
+
+      .btn {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        min-height: 44px;
+        padding: 0 14px;
+        font-size: 16px;
+        font-weight: 600;
+        background: #fff;
+        color: var(--text);
+      }
+
+      .btn.primary {
+        border-color: var(--primary);
+        background: var(--primary);
+        color: #fff;
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 18px 14px;
+      }
+
+      .title {
+        margin: 0;
+        font-size: 24px;
+        font-weight: 700;
+      }
+
+      .meta {
+        margin: 6px 0 0;
+        color: #68727f;
+        font-size: 14px;
+      }
+
+      .poem {
+        margin-top: 14px;
+        font-size: 22px;
+        line-height: 1.9;
+        word-break: break-all;
+      }
+
+      .blank {
+        width: calc(var(--w, 2) * 1.2em + 0.8em);
+        min-width: 2.6em;
+        height: 1.8em;
+        text-align: center;
+        border: 2px solid #b8c1d1;
+        border-radius: 8px;
+        font-size: 20px;
+        vertical-align: middle;
+        margin: 0 2px;
+        background: #fff;
+      }
+
+      .blank.correct {
+        border-color: var(--ok);
+        color: var(--ok);
+      }
+
+      .blank.wrong {
+        border-color: var(--bad);
+        color: var(--bad);
+      }
+
+      .tips {
+        margin-top: 10px;
+        color: #68727f;
+        font-size: 14px;
+      }
+
+      .popup {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        background: rgba(0, 0, 0, 0.28);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+      }
+
+      .popup.is-open {
+        display: flex;
+      }
+
+      .popup-card {
+        width: min(92vw, 460px);
+        background: #fff;
+        border-radius: 14px;
+        padding: 18px 14px;
+      }
+
+      .popup-title {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 700;
+      }
+
+      .popup-text {
+        margin: 10px 0 0;
+        font-size: 16px;
+        line-height: 1.6;
+      }
+
+      .popup-actions {
+        margin-top: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="toolbar">
+        <button class="btn" onclick="window.location.href='/mini-eng.html'">返回导航</button>
+        <button class="btn primary" id="next-poem-btn">换一首</button>
+      </section>
+
+      <section class="card">
+        <h1 class="title" id="poem-title">静夜思</h1>
+        <p class="meta" id="poem-author">李白</p>
+        <div class="poem" id="poem-content"></div>
+        <p class="tips">请补全挖空的5处字词，正确会显示绿色，错误显示红色。</p>
+      </section>
+    </main>
+
+    <div class="popup" id="congrats-popup">
+      <div class="popup-card">
+        <h2 class="popup-title">恭喜完成！</h2>
+        <p class="popup-text">全部填对了，太棒了！</p>
+        <p class="popup-text" id="analysis-text"></p>
+        <div class="popup-actions">
+          <button class="btn primary" id="next-in-popup-btn" style="width: 100%">下一首</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/xiaoguwen.js"></script>
+  </body>
+</html>

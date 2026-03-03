@@ -522,12 +522,20 @@ createServer(async (req, res) => {
       sendFile(res, "mini-eng.html");
       return;
     }
+    if (pathname === "/xiaoguwen.html") {
+      sendFile(res, "xiaoguwen.html");
+      return;
+    }
     if (pathname === "/app.js") {
       sendFile(res, "app.js");
       return;
     }
     if (pathname === "/mini-eng.js") {
       sendFile(res, "mini-eng.js");
+      return;
+    }
+    if (pathname === "/xiaoguwen.js") {
+      sendFile(res, "xiaoguwen.js");
       return;
     }
     if (pathname === "/minimaths-icon.svg") {

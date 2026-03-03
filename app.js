@@ -20,6 +20,7 @@ const navPage = document.getElementById("nav-page");
 const navClose = document.getElementById("nav-close");
 const navMinimaths = document.getElementById("nav-minimaths");
 const navMiniEng = document.getElementById("nav-mini-eng");
+const navXiaoguwen = document.getElementById("nav-xiaoguwen");
 const congratsOverlay = document.getElementById("congrats-overlay");
 const settingUsername = document.getElementById("setting-username");
 const settingOptionGroups = document.querySelectorAll("[data-setting-group]");
@@ -649,6 +650,10 @@ navMinimaths.addEventListener("click", () => {
 
 navMiniEng.addEventListener("click", () => {
   window.location.href = "/mini-eng.html";
+});
+
+navXiaoguwen.addEventListener("click", () => {
+  window.location.href = "/xiaoguwen.html";
 });
 
 await bootstrapFromDb();

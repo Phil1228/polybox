@@ -15,6 +15,7 @@ const settingsCloseBtn = document.getElementById("settings-close-btn");
 const navPage = document.getElementById("nav-page");
 const navMinimathsBtn = document.getElementById("nav-minimaths-btn");
 const navMiniEngBtn = document.getElementById("nav-mini-eng-btn");
+const navXiaoguwenBtn = document.getElementById("nav-xiaoguwen-btn");
 const navCloseBtn = document.getElementById("nav-close-btn");
 
 const TOPICS = [
@@ -234,6 +235,10 @@ navMinimathsBtn.addEventListener("click", () => {
 navMiniEngBtn.addEventListener("click", () => {
   closeNav();
   closeSettings();
+});
+
+navXiaoguwenBtn.addEventListener("click", () => {
+  window.location.href = "/xiaoguwen.html";
 });
 
 setQuestion(randomTopic());
