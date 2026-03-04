@@ -13,6 +13,8 @@ LOCAL_ROOT="$(cd "$(dirname "$0")" && pwd)"
 RELEASE_NAME="${APP_NAME}_release_$(date +%Y%m%d_%H%M%S)"
 RELEASE_TAR="/tmp/${RELEASE_NAME}.tar.gz"
 REMOTE_DEPLOY_SH="/tmp/${APP_NAME}_remote_deploy.sh"
+DEPLOY_IGNORE_FILE="${LOCAL_ROOT}/.deployignore"
+export COPYFILE_DISABLE=1
 
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -26,9 +28,26 @@ require_cmd gcp
 require_cmd sshmgr
 
 echo "==> Packaging release: ${RELEASE_TAR}"
-tar -C "${LOCAL_ROOT}" \
-  -czf "${RELEASE_TAR}" \
-  index.html mini-eng.html xiaoguwen.html novel.html app.js mini-eng.js xiaoguwen.js novel.js nav-loader.js server.mjs package.json package-lock.json minimaths-icon.svg site.webmanifest icon-192.png icon-512.png apple-touch-icon.png
+if [[ -f "${DEPLOY_IGNORE_FILE}" ]]; then
+  echo "==> Using .deployignore: ${DEPLOY_IGNORE_FILE}"
+  tar -C "${LOCAL_ROOT}" \
+    --exclude-from="${DEPLOY_IGNORE_FILE}" \
+    -czf "${RELEASE_TAR}" \
+    .
+else
+  tar -C "${LOCAL_ROOT}" \
+    --exclude="./.git" \
+    --exclude="./node_modules" \
+    --exclude="./data" \
+    --exclude="./*.db" \
+    --exclude="./*.sqlite" \
+    --exclude="./*.log" \
+    --exclude="./.DS_Store" \
+    --exclude="./.cursor" \
+    --exclude="./.vscode" \
+    -czf "${RELEASE_TAR}" \
+    .
+fi
 
 echo "==> Preparing remote deploy script"
 TMP_LOCAL_REMOTE_SH="$(mktemp)"

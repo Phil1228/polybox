@@ -1,0 +1,37 @@
+{
+  "id": "/novel.html",
+  "name": "Novel",
+  "short_name": "Novel",
+  "description": "众创小说树状分支阅读与续写",
+  "start_url": "/novel.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f6fb",
+  "theme_color": "#5b4bff",
+  "icons": [
+    {
+      "src": "/novel-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/novel-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/novel-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/novel-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

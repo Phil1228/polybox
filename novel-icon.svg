@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Novel">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6f66ff" />
+      <stop offset="100%" stop-color="#3f7dff" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)" />
+  <g fill="#ffffff">
+    <rect x="106" y="110" width="300" height="292" rx="22" opacity="0.18" />
+    <path d="M158 130h182c22 0 40 18 40 40v192c0 8-6 14-14 14H174c-22 0-40-18-40-40V144c0-8 6-14 14-14zm20 42v158c0 12 10 22 22 22h136V194H206c-10 0-20-8-20-22z" />
+    <circle cx="250" cy="272" r="13" />
+    <circle cx="292" cy="244" r="10" />
+    <circle cx="314" cy="290" r="9" />
+    <path d="M252 262l34-20m-22 28l36 18" stroke="#fff" stroke-width="10" stroke-linecap="round" />
+  </g>
+</svg>

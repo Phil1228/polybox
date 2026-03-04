@@ -1042,6 +1042,22 @@ createServer(async (req, res) => {
       sendFile(res, "minimaths-icon.svg");
       return;
     }
+    if (pathname === "/novel-icon.svg") {
+      sendFile(res, "novel-icon.svg");
+      return;
+    }
+    if (pathname === "/novel-icon-192.png") {
+      sendFile(res, "novel-icon-192.png");
+      return;
+    }
+    if (pathname === "/novel-icon-512.png") {
+      sendFile(res, "novel-icon-512.png");
+      return;
+    }
+    if (pathname === "/novel-apple-touch-icon.png") {
+      sendFile(res, "novel-apple-touch-icon.png");
+      return;
+    }
     if (pathname === "/icon-192.png") {
       sendFile(res, "icon-192.png");
       return;
@@ -1056,6 +1072,10 @@ createServer(async (req, res) => {
     }
     if (pathname === "/site.webmanifest") {
       sendFile(res, "site.webmanifest");
+      return;
+    }
+    if (pathname === "/novel.webmanifest") {
+      sendFile(res, "novel.webmanifest");
       return;
     }
     if (pathname === "/favicon.ico") {
