@@ -199,6 +199,14 @@ else
   npm install --omit=dev
 fi
 PDF_FONT_PATH="$(ensure_pdf_font_file)"
+RUNTIME_ENV_FILE="${APP_DIR}/runtime.env"
+if [[ ! -f "${RUNTIME_ENV_FILE}" ]]; then
+  cat > "${RUNTIME_ENV_FILE}" <<EOF
+# MiniMaths runtime environment
+# Fill Stripe test/production credentials here:
+STRIPE_SECRET_KEY=
+EOF
+fi
 
 UNIT_FILE_CONTENT="[Unit]
 Description=MiniMaths Service
@@ -211,6 +219,7 @@ WorkingDirectory=${APP_DIR}
 ExecStart=${NODE_BIN} ${APP_DIR}/server.mjs
 Restart=always
 RestartSec=3
+EnvironmentFile=-${RUNTIME_ENV_FILE}
 Environment=NODE_ENV=production
 Environment=PDF_CJK_FONT_PATH=${PDF_FONT_PATH}
 

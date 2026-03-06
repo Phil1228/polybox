@@ -17,6 +17,7 @@ const detailAuthor = document.getElementById("detail-author");
 const detailTime = document.getElementById("detail-time");
 const shareBtn = document.getElementById("share-btn");
 const shareStatus = document.getElementById("share-status");
+const treeBtn = document.getElementById("tree-btn");
 const integrateBtn = document.getElementById("integrate-btn");
 const likeBtn = document.getElementById("like-btn");
 const closePopupBtn = document.getElementById("close-popup-btn");
@@ -35,6 +36,10 @@ const integratedContent = document.getElementById("integrated-content");
 const integrateStatus = document.getElementById("integrate-status");
 const downloadPdfBtn = document.getElementById("download-pdf-btn");
 const closeIntegratePopupBtn = document.getElementById("close-integrate-popup-btn");
+const treePopup = document.getElementById("tree-popup");
+const treeScroll = document.getElementById("tree-scroll");
+const treeStatus = document.getElementById("tree-status");
+const closeTreePopupBtn = document.getElementById("close-tree-popup-btn");
 const candidatesPopup = document.getElementById("candidates-popup");
 const candidateScroll = document.getElementById("candidate-scroll");
 const candidateLoad = document.getElementById("candidate-load");
@@ -56,6 +61,17 @@ const navMinimathsBtn = document.getElementById("nav-minimaths-btn");
 const navMiniEngBtn = document.getElementById("nav-mini-eng-btn");
 const navXiaoguwenBtn = document.getElementById("nav-xiaoguwen-btn");
 const navNovelBtn = document.getElementById("nav-novel-btn");
+const navRechargeBtn = document.getElementById("nav-recharge-btn");
+const openGuideBtn = document.getElementById("open-guide-btn");
+const guideOverlay = document.getElementById("guide-overlay");
+const guidePanel = document.querySelector("#guide-overlay .guide-panel");
+const guideTitle = document.getElementById("guide-title");
+const guideSubtitle = document.getElementById("guide-subtitle");
+const guideText = document.getElementById("guide-text");
+const guideProgress = document.getElementById("guide-progress");
+const guidePrevBtn = document.getElementById("guide-prev-btn");
+const guideSkipBtn = document.getElementById("guide-skip-btn");
+const guideNextBtn = document.getElementById("guide-next-btn");
 
 let currentSeq = 1;
 let currentItem = null;
@@ -67,6 +83,7 @@ let candidateHasMore = true;
 let candidateLoading = false;
 const NOVEL_LOCAL_SETTINGS_KEY = "novel_local_settings";
 const NOVEL_CURRENT_ID_COOKIE = "novel_current_id";
+const NOVEL_GUIDE_SEEN_KEY = "novel_guide_seen_v1";
 let localSettings = {
   author: "",
   novelName: "Novel",
@@ -74,6 +91,84 @@ let localSettings = {
 };
 let writeVisible = false;
 let integratedLines = [];
+let treeRootNode = null;
+let treePathSet = new Set();
+let treeExpandedSet = new Set();
+let treeChildrenMap = new Map();
+let treeNodeMap = new Map();
+let treeClickTimer = null;
+let treeLastTap = { id: 0, time: 0 };
+let guideIndex = 0;
+let activeGuideTarget = null;
+const guideSteps = [
+  {
+    selector: ".topbar",
+    title: "顶部区域",
+    text: "左侧是设置和指引按钮，中间显示小说名，右侧 i 按钮可查看详情。",
+  },
+  {
+    selector: "#read-card",
+    title: "阅读区",
+    text: "这里显示当前正文和页序号，是你当前正在阅读的内容。",
+  },
+  {
+    selector: "#submissions-list",
+    title: "候选分支区",
+    text: "这里展示下一页候选内容，默认显示第一名，点击 more 可看全部候选。",
+  },
+  {
+    selector: ".pager",
+    title: "翻页与跳转",
+    text: "上一页回到父内容，下一页进入最高票分支，↗ 可按页数或内容ID快速跳转。",
+  },
+  {
+    selector: "#toggle-write-btn",
+    title: "续写开关",
+    text: "点击“我要续写”打开投稿区域，再次点击可收起。",
+  },
+  {
+    selector: "#submit-btn",
+    title: "投稿按钮",
+    text: "输入续写内容（最多400字）和作者名后，点击提交即可创建新的剧情分支。",
+    panelPosition: "top",
+    beforeEnter: () => {
+      if (!writeVisible) {
+        writeVisible = true;
+        syncWriteToggle();
+      }
+    },
+  },
+  {
+    selector: "#open-settings-btn",
+    title: "设置按钮",
+    text: "可设置作者名、小说名和“我是作者”默认开关。",
+  },
+  {
+    title: "设置页面",
+    text: "保存后会应用本地设置；右上角 more 可进入导航页面。",
+    selector: "#settings-page .settings-header",
+    overlayClear: true,
+    beforeEnter: () => openSettings(),
+    afterLeave: () => closeSettings(),
+  },
+  {
+    selector: "#detail-btn",
+    title: "详情功能",
+    text: "点击 i 可查看内容ID、票数、作者、时间，并可点赞、分享、整合和下载PDF。",
+  },
+  {
+    selector: "#novel-name",
+    title: "一人一笔，万线成书",
+    subtitle: "你写一句，世界就多一种走向",
+    textHtml:
+      '<div class="guide-text-rich">' +
+      "<p>这里没有唯一主线，只有不断生长的剧情宇宙。</p>" +
+      "<p>每次续写都会长出新分支，每次点赞都在改写下一页命运。</p>" +
+      '<p class="highlight">现在就留下你的那一句，让更多读者沿着你的分支继续冒险。</p>' +
+      "</div>",
+    finale: true,
+  },
+];
 
 async function api(path, options = {}) {
   const resp = await fetch(path, {
@@ -164,6 +259,101 @@ function closeNav() {
   navPage.classList.remove("is-open");
 }
 
+function clearGuideFocus() {
+  if (activeGuideTarget) {
+    activeGuideTarget.classList.remove("guide-focus");
+    activeGuideTarget = null;
+  }
+}
+
+function findGuideTarget(selector) {
+  const target = document.querySelector(selector);
+  if (!target) return null;
+  if (target.offsetParent === null && getComputedStyle(target).position !== "fixed") return null;
+  return target;
+}
+
+function renderGuideStep() {
+  const step = guideSteps[guideIndex];
+  if (!step) return;
+  if (typeof step.beforeEnter === "function") step.beforeEnter();
+
+  clearGuideFocus();
+  const target = findGuideTarget(step.selector);
+  if (target) {
+    activeGuideTarget = target;
+    activeGuideTarget.classList.add("guide-focus");
+    activeGuideTarget.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+  }
+
+  guideTitle.textContent = step.title;
+  if (guideSubtitle) {
+    if (step.subtitle) {
+      guideSubtitle.textContent = step.subtitle;
+      guideSubtitle.classList.remove("is-hidden");
+    } else {
+      guideSubtitle.textContent = "";
+      guideSubtitle.classList.add("is-hidden");
+    }
+  }
+  if (step.textHtml) {
+    guideText.innerHTML = step.textHtml;
+  } else {
+    guideText.textContent = step.text;
+  }
+  guideProgress.textContent = guideIndex + 1 + " / " + guideSteps.length;
+  if (guidePanel) {
+    guidePanel.classList.toggle("is-top", step.panelPosition === "top");
+    guidePanel.classList.toggle("is-finale", Boolean(step.finale));
+  }
+  guideOverlay.classList.toggle("is-clear", Boolean(step.overlayClear));
+  guideOverlay.classList.toggle("is-finale", Boolean(step.finale));
+  guidePrevBtn.disabled = guideIndex === 0;
+  guideNextBtn.textContent = guideIndex === guideSteps.length - 1 ? "完成" : "下一步";
+}
+
+function openGuide() {
+  closeSettings();
+  closeNav();
+  closeDetail();
+  closeJumpPopup();
+  closeIntegratePopup();
+  closeCandidatesPopup();
+  guideIndex = 0;
+  guideOverlay.classList.add("is-open");
+  renderGuideStep();
+}
+
+function closeGuide(markSeen = true) {
+  const step = guideSteps[guideIndex];
+  if (step && typeof step.afterLeave === "function") step.afterLeave();
+  clearGuideFocus();
+  guideOverlay.classList.remove("is-open");
+  guideOverlay.classList.remove("is-clear");
+  guideOverlay.classList.remove("is-finale");
+  if (guidePanel) guidePanel.classList.remove("is-finale");
+  if (markSeen) localStorage.setItem(NOVEL_GUIDE_SEEN_KEY, "1");
+}
+
+function nextGuideStep() {
+  const step = guideSteps[guideIndex];
+  if (step && typeof step.afterLeave === "function") step.afterLeave();
+  if (guideIndex >= guideSteps.length - 1) {
+    closeGuide(true);
+    return;
+  }
+  guideIndex += 1;
+  renderGuideStep();
+}
+
+function prevGuideStep() {
+  if (guideIndex <= 0) return;
+  const step = guideSteps[guideIndex];
+  if (step && typeof step.afterLeave === "function") step.afterLeave();
+  guideIndex -= 1;
+  renderGuideStep();
+}
+
 function openJumpPopup() {
   jumpCurrentId.textContent = "当前阅读ID：" + (currentItem?.id ?? "-");
   jumpCurrentSeq.textContent = "当前页序号：" + (currentItem?.seq ?? "-");
@@ -181,6 +371,14 @@ function openIntegratePopup() {
 
 function closeIntegratePopup() {
   integratePopup.classList.remove("is-open");
+}
+
+function openTreePopup() {
+  treePopup.classList.add("is-open");
+}
+
+function closeTreePopup() {
+  treePopup.classList.remove("is-open");
 }
 
 function getOrCreateDeviceId() {
@@ -345,6 +543,93 @@ function buildShareLink() {
   url.search = "";
   url.searchParams.set("id", String(currentItem.id));
   return url.toString();
+}
+
+function previewText(content) {
+  const raw = String(content || "");
+  const text = raw.replace(/\s+/g, " ").trim();
+  if (!text) return "(空内容)";
+  return text.length > 10 ? text.slice(0, 10) + "..." : text;
+}
+
+function getTreeChildren(nodeId) {
+  return treeChildrenMap.get(nodeId) || [];
+}
+
+async function ensureTreeNodeLoaded(nodeId) {
+  if (treeChildrenMap.has(nodeId) && treeNodeMap.has(nodeId)) return;
+  const data = await api("/api/novel/content?id=" + nodeId);
+  if (data.item) {
+    treeNodeMap.set(data.item.id, data.item);
+    treeChildrenMap.set(data.item.id, data.items || []);
+  }
+}
+
+function renderTreeNode(node, depth) {
+  const line = document.createElement("button");
+  line.type = "button";
+  line.className = "tree-item" + (node.id === currentItem?.id ? " current" : "");
+  line.style.paddingLeft = 6 + depth * 16 + "px";
+  line.dataset.id = String(node.id);
+  const isExpanded = treeExpandedSet.has(node.id);
+  const children = getTreeChildren(node.id);
+  const marker = children.length ? (isExpanded ? "▾ • " : "▸ • ") : "• ";
+  line.textContent =
+    marker +
+    (node.id === currentItem?.id ? "当前 · " : "") +
+    previewText(node.content) +
+    " · " +
+    (node.author || "匿名");
+  treeScroll.appendChild(line);
+
+  if (!isExpanded) return;
+  children.forEach((child) => renderTreeNode(child, depth + 1));
+}
+
+function renderTree() {
+  treeScroll.textContent = "";
+  if (!treeRootNode) return;
+  renderTreeNode(treeRootNode, 0);
+}
+
+async function openTreeView() {
+  if (!currentItem?.id) return;
+  treeScroll.textContent = "";
+  treeStatus.textContent = "内容树加载中...";
+  closeDetail();
+  openTreePopup();
+
+  try {
+    const chain = [];
+    treeChildrenMap = new Map();
+    treeNodeMap = new Map();
+    let cursorId = currentItem.id;
+    let guard = 0;
+
+    while (cursorId && guard < 120) {
+      guard += 1;
+      const data = await api("/api/novel/content?id=" + cursorId);
+      if (!data.item) break;
+      chain.push(data.item);
+      treeNodeMap.set(data.item.id, data.item);
+      treeChildrenMap.set(data.item.id, data.items || []);
+      cursorId = data.item.parentId ? Number(data.item.parentId) : 0;
+    }
+
+    if (!chain.length) {
+      treeStatus.textContent = "暂无可展示的内容树";
+      return;
+    }
+
+    const path = chain.reverse();
+    treeRootNode = path[0];
+    treePathSet = new Set(path.map((item) => item.id));
+    treeExpandedSet = new Set(path.map((item) => item.id));
+    renderTree();
+    treeStatus.textContent = "单击节点展开/收起下一层，双击节点可跳转到该内容";
+  } catch {
+    treeStatus.textContent = "内容树加载失败，请稍后重试";
+  }
 }
 
 async function shareCurrent() {
@@ -524,6 +809,7 @@ detailPopup.addEventListener("click", (e) => {
 });
 likeBtn.addEventListener("click", likeCurrent);
 shareBtn.addEventListener("click", shareCurrent);
+treeBtn.addEventListener("click", openTreeView);
 integrateBtn.addEventListener("click", integrateCurrent);
 submitBtn.addEventListener("click", submitContinuation);
 prevBtn.addEventListener("click", () => {
@@ -591,6 +877,50 @@ closeIntegratePopupBtn.addEventListener("click", closeIntegratePopup);
 integratePopup.addEventListener("click", (e) => {
   if (e.target === integratePopup) closeIntegratePopup();
 });
+closeTreePopupBtn.addEventListener("click", closeTreePopup);
+treePopup.addEventListener("click", (e) => {
+  if (e.target === treePopup) closeTreePopup();
+});
+treeScroll.addEventListener("click", (e) => {
+  const target = e.target;
+  const item = target instanceof HTMLElement ? target.closest(".tree-item") : null;
+  if (!item) return;
+  const id = Number(item.dataset.id);
+  if (!Number.isInteger(id) || id <= 0) return;
+  const now = Date.now();
+  const isDoubleTap = treeLastTap.id === id && now - treeLastTap.time <= 320;
+  treeLastTap = { id, time: now };
+
+  if (isDoubleTap) {
+    if (treeClickTimer) {
+      clearTimeout(treeClickTimer);
+      treeClickTimer = null;
+    }
+    closeTreePopup();
+    loadByQuery("id=" + id);
+    return;
+  }
+
+  if (treeClickTimer) {
+    clearTimeout(treeClickTimer);
+    treeClickTimer = null;
+  }
+  treeClickTimer = setTimeout(async () => {
+    try {
+      await ensureTreeNodeLoaded(id);
+      if (treeExpandedSet.has(id) && !treePathSet.has(id)) {
+        treeExpandedSet.delete(id);
+      } else {
+        treeExpandedSet.add(id);
+      }
+      renderTree();
+    } catch {
+      treeStatus.textContent = "展开失败，请稍后重试";
+    } finally {
+      treeClickTimer = null;
+    }
+  }, 220);
+});
 
 toggleWriteBtn.addEventListener("click", () => {
   writeVisible = !writeVisible;
@@ -626,6 +956,16 @@ navNovelBtn.addEventListener("click", () => {
   closeNav();
   closeSettings();
 });
+navRechargeBtn.addEventListener("click", () => {
+  window.location.href = "/recharge.html";
+});
+openGuideBtn.addEventListener("click", openGuide);
+guidePrevBtn.addEventListener("click", prevGuideStep);
+guideNextBtn.addEventListener("click", nextGuideStep);
+guideSkipBtn.addEventListener("click", () => closeGuide(true));
+guideOverlay.addEventListener("click", (e) => {
+  if (e.target === guideOverlay) closeGuide(true);
+});
 
 loadLocalSettings();
 writeVisible = Boolean(localSettings.isAuthor);
@@ -652,4 +992,10 @@ if (Number.isInteger(idFromUrl) && idFromUrl > 0) {
   } else {
     loadByQuery("seq=1");
   }
+}
+
+if (!localStorage.getItem(NOVEL_GUIDE_SEEN_KEY)) {
+  setTimeout(() => {
+    openGuide();
+  }, 450);
 }

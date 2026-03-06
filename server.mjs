@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import PDFDocument from "pdfkit";
+import Stripe from "stripe";
 
 const HOST = "0.0.0.0";
 const PORT = 3000;
@@ -546,6 +547,12 @@ function readBody(req) {
   });
 }
 
+function getStripeClient() {
+  const secretKey = process.env.STRIPE_SECRET_KEY || "";
+  if (!secretKey) return null;
+  return new Stripe(secretKey);
+}
+
 function sendFile(res, filePath) {
   try {
     const fullPath = resolve(ROOT, filePath);
@@ -855,6 +862,54 @@ async function handleApi(req, res, pathname) {
     return true;
   }
 
+  if (req.method === "POST" && pathname === "/api/billing/checkout-session") {
+    const body = JSON.parse((await readBody(req)) || "{}");
+    const amountYuan = Number(body.amountYuan);
+    const origin = typeof body.origin === "string" && /^https?:\/\//.test(body.origin) ? body.origin : "";
+    const stripe = getStripeClient();
+    if (!stripe) {
+      json(res, 500, {
+        error: "Stripe 未配置：请在服务环境中设置 STRIPE_SECRET_KEY",
+      });
+      return true;
+    }
+    if (!origin) {
+      badRequest(res, "Invalid origin");
+      return true;
+    }
+    if (!Number.isInteger(amountYuan) || amountYuan <= 0) {
+      badRequest(res, "Invalid amount");
+      return true;
+    }
+    const amountFen = amountYuan * 100;
+    const successUrl = origin + "/recharge.html?status=success";
+    const cancelUrl = origin + "/recharge.html?status=cancel";
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      line_items: [
+        {
+          price_data: {
+            currency: "cny",
+            unit_amount: amountFen,
+            product_data: {
+              name: "Novel 充值",
+              description: "众创小说模块测试充值",
+            },
+          },
+          quantity: 1,
+        },
+      ],
+      metadata: {
+        module: "novel",
+        amountYuan: String(amountYuan),
+      },
+    });
+    json(res, 200, { url: session.url || "" });
+    return true;
+  }
+
   if (req.method === "GET" && pathname === "/api/novel/content") {
     const query = new URL(req.url || "/", `http://${HOST}:${PORT}`).searchParams;
     const id = Number(query.get("id"));
@@ -1018,6 +1073,10 @@ createServer(async (req, res) => {
       sendFile(res, "novel.html");
       return;
     }
+    if (pathname === "/recharge.html") {
+      sendFile(res, "recharge.html");
+      return;
+    }
     if (pathname === "/app.js") {
       sendFile(res, "app.js");
       return;
@@ -1028,6 +1087,10 @@ createServer(async (req, res) => {
     }
     if (pathname === "/novel.js") {
       sendFile(res, "novel.js");
+      return;
+    }
+    if (pathname === "/recharge.js") {
+      sendFile(res, "recharge.js");
       return;
     }
     if (pathname === "/nav-loader.js") {

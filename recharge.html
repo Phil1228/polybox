@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>充值</title>
+    <style>
+      :root {
+        --bg: #f4f6fb;
+        --card: #ffffff;
+        --text: #1a1a1a;
+        --line: #d7dce7;
+        --primary: #2f6fff;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        min-height: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+      body {
+        padding: 16px 14px 24px;
+      }
+      .page {
+        width: min(92vw, 620px);
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .btn {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        min-height: 44px;
+        padding: 0 12px;
+        font-size: 16px;
+        font-weight: 600;
+        background: #fff;
+        color: var(--text);
+      }
+      .btn.primary {
+        background: var(--primary);
+        border-color: var(--primary);
+        color: #fff;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px;
+      }
+      .title {
+        margin: 0;
+        font-size: 24px;
+      }
+      .desc {
+        margin: 8px 0 0;
+        color: #5f6776;
+        line-height: 1.6;
+      }
+      .group {
+        margin-top: 10px;
+      }
+      .label {
+        font-size: 14px;
+        color: #5f6776;
+        margin-bottom: 8px;
+      }
+      .options {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+      .amount-btn.active {
+        border-color: var(--primary);
+        color: var(--primary);
+        background: #eef4ff;
+      }
+      .status {
+        margin-top: 10px;
+        min-height: 22px;
+        color: #5f6776;
+        font-size: 14px;
+      }
+      .status.error {
+        color: #d93025;
+        font-weight: 700;
+      }
+      .status.success {
+        color: #137333;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <div class="toolbar">
+        <button class="btn" id="back-btn">返回</button>
+      </div>
+      <section class="card">
+        <h1 class="title">充值</h1>
+        <p class="desc">测试模式下会跳转到 Stripe Checkout。请选择金额并继续支付。</p>
+        <div class="group">
+          <div class="label">金额（测试）</div>
+          <div class="options">
+            <button class="btn amount-btn active" data-amount="6">6 元</button>
+            <button class="btn amount-btn" data-amount="18">18 元</button>
+            <button class="btn amount-btn" data-amount="30">30 元</button>
+          </div>
+        </div>
+        <div class="group">
+          <button class="btn primary" id="checkout-btn" style="width: 100%">前往支付</button>
+        </div>
+        <div class="status" id="status"></div>
+      </section>
+    </main>
+    <script type="module" src="/recharge.js"></script>
+  </body>
+</html>

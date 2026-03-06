@@ -62,6 +62,12 @@
         gap: 10px;
       }
 
+      .left-actions {
+        display: inline-flex;
+        gap: 8px;
+        justify-self: start;
+      }
+
       .novel-name {
         text-align: center;
         font-size: 22px;
@@ -352,17 +358,202 @@
         font-size: 20px;
         font-weight: 700;
       }
+
+      .guide-focus {
+        position: relative;
+        z-index: 121;
+        border-radius: 12px;
+        box-shadow: 0 0 0 3px #7a63ff, 0 10px 26px rgba(39, 21, 119, 0.25);
+      }
+
+      .guide-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 120;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+      }
+
+      .guide-overlay.is-open {
+        display: block;
+      }
+
+      .guide-overlay.is-clear {
+        background: transparent;
+      }
+
+      .guide-overlay.is-finale {
+        background: radial-gradient(circle at 50% 75%, rgba(122, 99, 255, 0.34), rgba(0, 0, 0, 0.56));
+      }
+
+      .guide-panel {
+        position: fixed;
+        left: 50%;
+        bottom: max(12px, env(safe-area-inset-bottom));
+        transform: translateX(-50%);
+        width: min(94vw, 520px);
+        background: #fff;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        box-shadow: 0 14px 30px rgba(0, 0, 0, 0.22);
+        padding: 14px;
+      }
+
+      .guide-panel.is-top {
+        top: max(12px, env(safe-area-inset-top));
+        bottom: auto;
+      }
+
+      .guide-panel.is-finale {
+        border: 1px solid rgba(129, 92, 255, 0.56);
+        background: linear-gradient(135deg, #ffffff 0%, #f4f0ff 55%, #efe9ff 100%);
+        box-shadow: 0 18px 40px rgba(80, 42, 174, 0.32);
+        animation: finalePulse 1.8s ease-in-out infinite;
+      }
+
+      .guide-title {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 700;
+      }
+
+      .guide-subtitle {
+        margin: 6px 0 0;
+        font-size: 13px;
+        color: #7b8291;
+      }
+
+      .guide-subtitle.is-hidden {
+        display: none;
+      }
+
+      .guide-panel.is-finale .guide-title {
+        font-size: 22px;
+        color: #4f2ac0;
+      }
+
+      .guide-panel.is-finale .guide-subtitle {
+        color: #6b53d2;
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .guide-text {
+        margin: 8px 0 0;
+        line-height: 1.65;
+        color: #4a5260;
+        font-size: 15px;
+      }
+
+      .guide-panel.is-finale .guide-text {
+        color: #3e3470;
+        font-size: 16px;
+      }
+
+      .guide-text-rich {
+        margin-top: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .guide-text-rich p {
+        margin: 0;
+        line-height: 1.65;
+      }
+
+      .guide-text-rich .highlight {
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(129, 92, 255, 0.35);
+        background: rgba(129, 92, 255, 0.08);
+        color: #4f2ac0;
+        font-weight: 700;
+      }
+
+      .guide-progress {
+        margin-top: 10px;
+        color: #7b8291;
+        font-size: 13px;
+      }
+
+      .guide-actions {
+        margin-top: 12px;
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 8px;
+      }
+
+      .tree-scroll {
+        max-height: 62vh;
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px;
+        background: #fafbff;
+      }
+
+      .tree-item {
+        width: 100%;
+        text-align: left;
+        background: #fff;
+        border: 1px solid transparent;
+        font-size: 14px;
+        line-height: 1.5;
+        color: #2f3642;
+        margin: 0;
+        padding: 6px 8px;
+        border-radius: 8px;
+        cursor: pointer;
+        animation: treeNodeFadeIn 120ms ease;
+      }
+
+      .tree-item.current {
+        border-color: #9bb6ff;
+        background: #edf2ff;
+        font-weight: 700;
+      }
+
+      .tree-item:hover {
+        border-color: #d3dbef;
+      }
+
+      @keyframes treeNodeFadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(2px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes finalePulse {
+        0% {
+          box-shadow: 0 18px 40px rgba(80, 42, 174, 0.28);
+        }
+        50% {
+          box-shadow: 0 22px 46px rgba(80, 42, 174, 0.42);
+        }
+        100% {
+          box-shadow: 0 18px 40px rgba(80, 42, 174, 0.28);
+        }
+      }
     </style>
   </head>
   <body>
     <main class="page">
       <section class="topbar">
-        <button class="btn" id="open-settings-btn" style="justify-self: start">设置</button>
+        <div class="left-actions">
+          <button class="btn" id="open-settings-btn">设置</button>
+          <button class="btn" id="open-guide-btn">指引</button>
+        </div>
         <div class="novel-name" id="novel-name">众创小说</div>
         <button class="icon-btn" id="detail-btn" aria-label="查看详情" style="justify-self: end">i</button>
       </section>
 
-      <section class="card">
+      <section class="card" id="read-card">
         <p class="meta" id="seq-meta">第 1 页</p>
         <div class="content" id="novel-content">加载中...</div>
         <h3 class="submissions-title">下一页候选榜（续写本段）</h3>
@@ -431,6 +622,7 @@
         <p class="popup-line" id="detail-author">作者：匿名</p>
         <p class="popup-line" id="detail-time">创建时间：-</p>
         <button class="btn" id="share-btn" style="width: 100%">分享</button>
+        <button class="btn" id="tree-btn" style="width: 100%; margin-top: 8px">内容树</button>
         <button class="btn" id="integrate-btn" style="width: 100%; margin-top: 8px">整合</button>
         <div class="status" id="share-status"></div>
         <button class="btn primary" id="like-btn" style="width: 100%">点赞 +1</button>
@@ -464,6 +656,15 @@
       </div>
     </div>
 
+    <div class="popup" id="tree-popup">
+      <div class="popup-card" style="width: min(94vw, 760px)">
+        <h2 style="margin: 0; font-size: 20px; font-weight: 700">内容树</h2>
+        <div class="tree-scroll" id="tree-scroll"></div>
+        <div class="status" id="tree-status"></div>
+        <button class="btn" id="close-tree-popup-btn" style="width: 100%; margin-top: 8px">关闭</button>
+      </div>
+    </div>
+
     <div class="popup" id="jump-popup">
       <div class="popup-card">
         <h2 style="margin: 0; font-size: 20px; font-weight: 700">快速跳转</h2>
@@ -492,6 +693,20 @@
         <div class="candidate-scroll" id="candidate-scroll"></div>
         <div class="candidate-load" id="candidate-load">向下滚动加载更多</div>
         <button class="btn" id="close-candidates-btn" style="width: 100%; margin-top: 10px">关闭</button>
+      </div>
+    </div>
+
+    <div class="guide-overlay" id="guide-overlay">
+      <div class="guide-panel">
+        <h3 class="guide-title" id="guide-title">新手指引</h3>
+        <p class="guide-subtitle is-hidden" id="guide-subtitle"></p>
+        <p class="guide-text" id="guide-text">欢迎来到众创小说。</p>
+        <div class="guide-progress" id="guide-progress">1 / 1</div>
+        <div class="guide-actions">
+          <button class="btn" id="guide-prev-btn">上一步</button>
+          <button class="btn" id="guide-skip-btn">跳过</button>
+          <button class="btn primary" id="guide-next-btn">下一步</button>
+        </div>
       </div>
     </div>
 

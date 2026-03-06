@@ -17,6 +17,7 @@ const navMinimathsBtn = document.getElementById("nav-minimaths-btn");
 const navMiniEngBtn = document.getElementById("nav-mini-eng-btn");
 const navXiaoguwenBtn = document.getElementById("nav-xiaoguwen-btn");
 const navNovelBtn = document.getElementById("nav-novel-btn");
+const navRechargeBtn = document.getElementById("nav-recharge-btn");
 const navCloseBtn = document.getElementById("nav-close-btn");
 const aiProviderSelect = document.getElementById("ai-provider");
 const aiKeyInput = document.getElementById("ai-key");
@@ -304,6 +305,10 @@ navXiaoguwenBtn.addEventListener("click", () => {
 
 navNovelBtn.addEventListener("click", () => {
   window.location.href = "/novel.html";
+});
+
+navRechargeBtn.addEventListener("click", () => {
+  window.location.href = "/recharge.html";
 });
 
 loadAiConfigFromCookie();
