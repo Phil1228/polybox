@@ -59,6 +59,26 @@ db.exec(`
     FOREIGN KEY(entry_id) REFERENCES leaderboard_entries(id) ON DELETE CASCADE
   );
 
+  CREATE TABLE IF NOT EXISTS processing_speed_entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL,
+    level TEXT NOT NULL DEFAULT 'beginner',
+    total_ms INTEGER NOT NULL,
+    total_time_text TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS processing_speed_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    entry_id INTEGER NOT NULL,
+    item_order INTEGER NOT NULL,
+    target_text TEXT NOT NULL,
+    time_ms INTEGER NOT NULL,
+    time_text TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(entry_id) REFERENCES processing_speed_entries(id) ON DELETE CASCADE
+  );
+
   CREATE TABLE IF NOT EXISTS novel_contents (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     seq INTEGER NOT NULL,
@@ -120,6 +140,9 @@ if (!hasColumn("leaderboard_entries", "config_label")) {
 }
 if (!hasColumn("novel_contents", "parent_id")) {
   db.exec("ALTER TABLE novel_contents ADD COLUMN parent_id INTEGER");
+}
+if (!hasColumn("processing_speed_entries", "level")) {
+  db.exec("ALTER TABLE processing_speed_entries ADD COLUMN level TEXT NOT NULL DEFAULT 'beginner'");
 }
 
 const getSettingsStmt = db.prepare(`
@@ -197,6 +220,30 @@ const readLeaderboardItemsStmt = db.prepare(`
   FROM leaderboard_items
   WHERE entry_id = ?
   ORDER BY item_order ASC, id ASC
+`);
+
+const readProcessingSpeedLeaderboardStmt = db.prepare(`
+  SELECT
+    id,
+    username,
+    level,
+    total_ms AS totalMs,
+    total_time_text AS totalTimeText,
+    created_at AS createdAt
+  FROM processing_speed_entries
+  WHERE level = ?
+  ORDER BY total_ms ASC, id ASC
+  LIMIT 10
+`);
+
+const insertProcessingSpeedEntryStmt = db.prepare(`
+  INSERT INTO processing_speed_entries (username, level, total_ms, total_time_text)
+  VALUES (?, ?, ?, ?)
+`);
+
+const insertProcessingSpeedItemStmt = db.prepare(`
+  INSERT INTO processing_speed_items (entry_id, item_order, target_text, time_ms, time_text)
+  VALUES (?, ?, ?, ?, ?)
 `);
 
 const readNovelTopBySeqStmt = db.prepare(`
@@ -773,6 +820,13 @@ async function handleApi(req, res, pathname) {
     return true;
   }
 
+  if (req.method === "GET" && pathname === "/api/processing-speed/leaderboard") {
+    const query = new URL(req.url || "/", `http://${HOST}:${PORT}`).searchParams;
+    const level = query.get("level") === "advanced" ? "advanced" : "beginner";
+    json(res, 200, { level, items: readProcessingSpeedLeaderboardStmt.all(level) });
+    return true;
+  }
+
   if (req.method === "POST" && pathname === "/api/settings") {
     const body = JSON.parse((await readBody(req)) || "{}");
     const nextSettings = sanitizeSettings(body);
@@ -859,6 +913,50 @@ async function handleApi(req, res, pathname) {
     }
 
     json(res, 200, heuristicMiniEngEvaluation(question, answer, recognitionConfidence));
+    return true;
+  }
+
+  if (req.method === "POST" && pathname === "/api/processing-speed/round") {
+    const body = JSON.parse((await readBody(req)) || "{}");
+    const username =
+      typeof body.username === "string" && body.username.trim() ? body.username.trim().slice(0, 10) : "匿名";
+    const level = body.level === "advanced" ? "advanced" : "beginner";
+    const totalMs = Number(body.totalMs);
+    const totalTimeText = typeof body.totalTimeText === "string" ? body.totalTimeText : "";
+    const items = Array.isArray(body.items) ? body.items : [];
+    if (!Number.isFinite(totalMs) || totalMs <= 0) {
+      badRequest(res, "Invalid totalMs");
+      return true;
+    }
+    if (items.length !== 9) {
+      badRequest(res, "Round must contain exactly 9 items");
+      return true;
+    }
+
+    db.exec("BEGIN");
+    try {
+      const result = insertProcessingSpeedEntryStmt.run(
+        username,
+        level,
+        Math.round(totalMs),
+        totalTimeText || "0.00 秒",
+      );
+      const entryId = Number(result.lastInsertRowid);
+      items.forEach((item, index) => {
+        insertProcessingSpeedItemStmt.run(
+          entryId,
+          index,
+          String(item.target || ""),
+          Number(item.timeMs) || 0,
+          String(item.timeText || "0.00 秒"),
+        );
+      });
+      db.exec("COMMIT");
+      json(res, 200, { ok: true, level, items: readProcessingSpeedLeaderboardStmt.all(level) });
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
     return true;
   }
 
@@ -1058,6 +1156,14 @@ createServer(async (req, res) => {
     if (await handleApi(req, res, pathname)) return;
 
     if (pathname === "/") {
+      sendFile(res, "polybox.html");
+      return;
+    }
+    if (pathname === "/polybox.html") {
+      sendFile(res, "polybox.html");
+      return;
+    }
+    if (pathname === "/minimaths.html") {
       sendFile(res, "index.html");
       return;
     }
@@ -1071,6 +1177,10 @@ createServer(async (req, res) => {
     }
     if (pathname === "/novel.html") {
       sendFile(res, "novel.html");
+      return;
+    }
+    if (pathname === "/processing-speed.html") {
+      sendFile(res, "processing-speed.html");
       return;
     }
     if (pathname === "/recharge.html") {
@@ -1087,6 +1197,10 @@ createServer(async (req, res) => {
     }
     if (pathname === "/novel.js") {
       sendFile(res, "novel.js");
+      return;
+    }
+    if (pathname === "/processing-speed.js") {
+      sendFile(res, "processing-speed.js");
       return;
     }
     if (pathname === "/recharge.js") {

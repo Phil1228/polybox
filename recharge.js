@@ -28,7 +28,7 @@ amountBtns.forEach((btn) => {
 });
 
 backBtn.addEventListener("click", () => {
-  window.history.length > 1 ? window.history.back() : (window.location.href = "/");
+  window.history.length > 1 ? window.history.back() : (window.location.href = "/minimaths.html");
 });
 
 checkoutBtn.addEventListener("click", async () => {

@@ -11,6 +11,7 @@ const settingsPage = document.getElementById("settings-page");
 const settingsMore = document.getElementById("settings-more");
 const leaderboardPage = document.getElementById("leaderboard-page");
 const leaderboardList = document.getElementById("leaderboard-list");
+const leaderboardConfigSelect = document.getElementById("leaderboard-config-select");
 const leaderboardClose = document.getElementById("leaderboard-close");
 const detailPage = document.getElementById("detail-page");
 const detailTitle = document.getElementById("detail-title");
@@ -22,6 +23,7 @@ const navMinimaths = document.getElementById("nav-minimaths");
 const navMiniEng = document.getElementById("nav-mini-eng");
 const navXiaoguwen = document.getElementById("nav-xiaoguwen");
 const navNovel = document.getElementById("nav-novel");
+const navSpeed = document.getElementById("nav-speed");
 const navRecharge = document.getElementById("nav-recharge");
 const congratsOverlay = document.getElementById("congrats-overlay");
 const settingUsername = document.getElementById("setting-username");
@@ -31,6 +33,7 @@ const settingsCancel = document.getElementById("settings-cancel");
 const mobileQuery = window.matchMedia("(max-width: 760px)");
 const USERNAME_COOKIE_KEY = "minimaths_username";
 const SETTINGS_COOKIE_KEY = "minimaths_settings";
+const LEADERBOARD_FILTER_COOKIE_KEY = "minimaths_leaderboard_filter";
 
 let correct = 0;
 let input = "";
@@ -47,6 +50,7 @@ const leaderboardGroups = [];
 let isRoundTransitioning = false;
 let leaderboardJumpTimer = null;
 let isSavingAnswer = false;
+let selectedLeaderboardConfigKey = "";
 let settings = {
   username: "",
   problemType: "add",
@@ -255,7 +259,8 @@ function renderHistory() {
 
 function renderLeaderboard() {
   leaderboardList.innerHTML = "";
-  if (leaderboardGroups.length === 0) {
+  const selectedGroup = leaderboardGroups.find((group) => group.configKey === selectedLeaderboardConfigKey) || null;
+  if (!selectedGroup) {
     const empty = document.createElement("li");
     empty.className = "leaderboard-empty";
     empty.textContent = "暂无记录";
@@ -263,46 +268,72 @@ function renderLeaderboard() {
     return;
   }
 
+  const groupLi = document.createElement("li");
+  groupLi.className = "leaderboard-group";
+
+  const groupTitle = document.createElement("div");
+  groupTitle.className = "leaderboard-group-title";
+  groupTitle.textContent = selectedGroup.configLabel;
+  groupLi.appendChild(groupTitle);
+
+  selectedGroup.items.forEach((entry) => {
+    const li = document.createElement("div");
+    li.className = "leaderboard-item";
+
+    const rank = document.createElement("div");
+    rank.className = "leaderboard-rank";
+    rank.textContent = "#" + entry.rankInConfig;
+
+    const user = document.createElement("div");
+    user.className = "leaderboard-user";
+    user.textContent = entry.username;
+
+    const time = document.createElement("div");
+    time.className = "leaderboard-time";
+    time.textContent = entry.totalTimeText;
+
+    const detailBtn = document.createElement("button");
+    detailBtn.className = "leaderboard-detail-btn";
+    detailBtn.textContent = "详细";
+    detailBtn.dataset.id = String(entry.id);
+    detailBtn.dataset.username = entry.username;
+    detailBtn.dataset.time = entry.totalTimeText;
+
+    li.appendChild(rank);
+    li.appendChild(user);
+    li.appendChild(time);
+    li.appendChild(detailBtn);
+    groupLi.appendChild(li);
+  });
+  leaderboardList.appendChild(groupLi);
+}
+
+function getDefaultLeaderboardConfigKey() {
+  const preferLabel = "加-2-2-10";
+  const preferred = leaderboardGroups.find((group) => group.configLabel === preferLabel);
+  if (preferred) return preferred.configKey;
+  return leaderboardGroups[0]?.configKey || "";
+}
+
+function syncLeaderboardConfigSelection() {
+  const valid = leaderboardGroups.some((group) => group.configKey === selectedLeaderboardConfigKey);
+  if (!valid) {
+    const cookieValue = getCookieValue(LEADERBOARD_FILTER_COOKIE_KEY);
+    if (cookieValue && leaderboardGroups.some((group) => group.configKey === cookieValue)) {
+      selectedLeaderboardConfigKey = cookieValue;
+    } else {
+      selectedLeaderboardConfigKey = getDefaultLeaderboardConfigKey();
+    }
+  }
+
+  leaderboardConfigSelect.innerHTML = "";
+  if (!leaderboardGroups.length) return;
   leaderboardGroups.forEach((group) => {
-    const groupLi = document.createElement("li");
-    groupLi.className = "leaderboard-group";
-
-    const groupTitle = document.createElement("div");
-    groupTitle.className = "leaderboard-group-title";
-    groupTitle.textContent = group.configLabel;
-    groupLi.appendChild(groupTitle);
-
-    group.items.forEach((entry) => {
-      const li = document.createElement("div");
-      li.className = "leaderboard-item";
-
-      const rank = document.createElement("div");
-      rank.className = "leaderboard-rank";
-      rank.textContent = "#" + entry.rankInConfig;
-
-      const user = document.createElement("div");
-      user.className = "leaderboard-user";
-      user.textContent = entry.username;
-
-      const time = document.createElement("div");
-      time.className = "leaderboard-time";
-      time.textContent = entry.totalTimeText;
-
-      const detailBtn = document.createElement("button");
-      detailBtn.className = "leaderboard-detail-btn";
-      detailBtn.textContent = "详细";
-      detailBtn.dataset.id = String(entry.id);
-      detailBtn.dataset.username = entry.username;
-      detailBtn.dataset.time = entry.totalTimeText;
-
-      li.appendChild(rank);
-      li.appendChild(user);
-      li.appendChild(time);
-      li.appendChild(detailBtn);
-      groupLi.appendChild(li);
-    });
-
-    leaderboardList.appendChild(groupLi);
+    const option = document.createElement("option");
+    option.value = group.configKey;
+    option.textContent = group.configLabel;
+    option.selected = group.configKey === selectedLeaderboardConfigKey;
+    leaderboardConfigSelect.appendChild(option);
   });
 }
 
@@ -380,6 +411,7 @@ async function refreshLeaderboardFromDb() {
 
 async function openLeaderboard() {
   await refreshLeaderboardFromDb();
+  syncLeaderboardConfigSelection();
   renderLeaderboard();
   leaderboardPage.classList.add("is-open");
 }
@@ -456,6 +488,8 @@ async function finishRoundAndRecord() {
   });
 
   await refreshLeaderboardFromDb();
+  selectedLeaderboardConfigKey = getConfigLabel();
+  setCookieValue(LEADERBOARD_FILTER_COOKIE_KEY, selectedLeaderboardConfigKey, 365);
   resetRoundProgress(true);
   isRoundTransitioning = true;
   congratsOverlay.classList.add("is-open");
@@ -622,6 +656,12 @@ leaderboardToggle.addEventListener("click", async () => {
   await openLeaderboard();
 });
 
+leaderboardConfigSelect.addEventListener("change", () => {
+  selectedLeaderboardConfigKey = leaderboardConfigSelect.value || "";
+  setCookieValue(LEADERBOARD_FILTER_COOKIE_KEY, selectedLeaderboardConfigKey, 365);
+  renderLeaderboard();
+});
+
 leaderboardClose.addEventListener("click", () => {
   closeLeaderboard();
   closeDetail();
@@ -662,6 +702,10 @@ navNovel.addEventListener("click", () => {
   window.location.href = "/novel.html";
 });
 
+navSpeed.addEventListener("click", () => {
+  window.location.href = "/processing-speed.html";
+});
+
 navRecharge.addEventListener("click", () => {
   window.location.href = "/recharge.html";
 });
@@ -673,4 +717,5 @@ if (initParams.get("openNav") === "1") {
 document.documentElement.classList.remove("open-nav-init");
 
 await bootstrapFromDb();
+selectedLeaderboardConfigKey = getCookieValue(LEADERBOARD_FILTER_COOKIE_KEY) || "";
 nextQuestion();

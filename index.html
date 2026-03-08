@@ -12,6 +12,7 @@
     </script>
     <meta name="theme-color" content="#2f6fff" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="MiniMaths" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
     <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
@@ -690,6 +691,10 @@
 
     <section class="leaderboard-page" id="leaderboard-page">
       <h2 class="settings-title">排行榜</h2>
+      <div class="setting-item" style="padding: 10px">
+        <div class="setting-label">模式</div>
+        <select class="setting-control" id="leaderboard-config-select"></select>
+      </div>
       <ul class="leaderboard-list" id="leaderboard-list"></ul>
       <div class="settings-actions">
         <button class="settings-action" id="leaderboard-close">再来一次</button>

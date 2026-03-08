@@ -12,6 +12,7 @@
     <button class="nav-button" id="nav-mini-eng">miniEng</button>
     <button class="nav-button" id="nav-xiaoguwen">小古文</button>
     <button class="nav-button" id="nav-novel">novel</button>
+    <button class="nav-button" id="nav-speed">加工速度</button>
     <button class="nav-button" id="nav-recharge">充值</button>
   </div>
   <div class="settings-actions">
@@ -26,6 +27,7 @@
     <button class="btn nav-button" id="nav-mini-eng-btn">miniEng</button>
     <button class="btn nav-button" id="nav-xiaoguwen-btn">小古文</button>
     <button class="btn nav-button" id="nav-novel-btn">novel</button>
+    <button class="btn nav-button" id="nav-speed-btn">加工速度</button>
     <button class="btn nav-button" id="nav-recharge-btn">充值</button>
   </div>
   <button class="btn" id="nav-close-btn">返回</button>
@@ -38,6 +40,7 @@
     <button class="btn nav-button" id="nav-mini-eng-btn">miniEng</button>
     <button class="btn nav-button" id="nav-xiaoguwen-btn">小古文</button>
     <button class="btn nav-button" id="nav-novel-btn">novel</button>
+    <button class="btn nav-button" id="nav-speed-btn">加工速度</button>
     <button class="btn nav-button" id="nav-recharge-btn">充值</button>
   </div>
   <button class="btn" id="nav-close-btn">返回</button>

@@ -61,6 +61,7 @@ const navMinimathsBtn = document.getElementById("nav-minimaths-btn");
 const navMiniEngBtn = document.getElementById("nav-mini-eng-btn");
 const navXiaoguwenBtn = document.getElementById("nav-xiaoguwen-btn");
 const navNovelBtn = document.getElementById("nav-novel-btn");
+const navSpeedBtn = document.getElementById("nav-speed-btn");
 const navRechargeBtn = document.getElementById("nav-recharge-btn");
 const openGuideBtn = document.getElementById("open-guide-btn");
 const guideOverlay = document.getElementById("guide-overlay");
@@ -944,7 +945,7 @@ saveSettingsBtn.addEventListener("click", () => {
 });
 navCloseBtn.addEventListener("click", closeNav);
 navMinimathsBtn.addEventListener("click", () => {
-  window.location.href = "/";
+  window.location.href = "/minimaths.html";
 });
 navMiniEngBtn.addEventListener("click", () => {
   window.location.href = "/mini-eng.html";
@@ -955,6 +956,9 @@ navXiaoguwenBtn.addEventListener("click", () => {
 navNovelBtn.addEventListener("click", () => {
   closeNav();
   closeSettings();
+});
+navSpeedBtn.addEventListener("click", () => {
+  window.location.href = "/processing-speed.html";
 });
 navRechargeBtn.addEventListener("click", () => {
   window.location.href = "/recharge.html";

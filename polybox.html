@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#111827" />
+    <title>POLYBOX - 软件开发与电子商务</title>
+    <style>
+      :root {
+        --bg: #0b1220;
+        --card: #121b2f;
+        --text: #e7ecf7;
+        --muted: #9ca8c4;
+        --line: #2a3552;
+        --primary: #5b8cff;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        min-height: 100%;
+        background: radial-gradient(circle at top, #17233f, var(--bg) 58%);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+      body {
+        display: flex;
+        justify-content: center;
+      }
+      .page {
+        width: min(100%, 1080px);
+        padding: clamp(16px, 4vw, 40px) clamp(14px, 4vw, 32px) clamp(22px, 6vw, 46px);
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .hero {
+        background: linear-gradient(140deg, rgba(91, 140, 255, 0.2), rgba(35, 49, 86, 0.65));
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: clamp(18px, 4vw, 30px);
+      }
+      .brand {
+        margin: 0;
+        font-size: clamp(30px, 8vw, 52px);
+        letter-spacing: 1px;
+      }
+      .subtitle {
+        margin: 10px 0 0;
+        font-size: clamp(15px, 3.6vw, 20px);
+        color: var(--muted);
+        line-height: 1.6;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 16px;
+      }
+      .card h2 {
+        margin: 0;
+        font-size: 20px;
+      }
+      .card p {
+        margin: 8px 0 0;
+        color: var(--muted);
+        line-height: 1.65;
+      }
+      .products {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+        margin-top: 12px;
+      }
+      .link {
+        display: block;
+        text-decoration: none;
+        color: var(--text);
+        border: 1px solid #314063;
+        border-radius: 12px;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.02);
+        transition: transform 0.14s ease, border-color 0.14s ease;
+      }
+      .link:active {
+        transform: scale(0.99);
+      }
+      .name {
+        font-weight: 700;
+        font-size: 17px;
+      }
+      .desc {
+        margin-top: 6px;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .footer {
+        color: #7c89aa;
+        font-size: 13px;
+        text-align: center;
+        margin-top: 6px;
+      }
+      @media (min-width: 860px) {
+        .grid {
+          grid-template-columns: 1.1fr 1fr;
+        }
+        .products {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <h1 class="brand">POLYBOX</h1>
+        <p class="subtitle">
+          面向企业与创作者，提供软件开发服务与电子商务解决方案。<br />
+          我们专注于高可用产品交付、移动端体验优化与业务增长转化。
+        </p>
+      </section>
+
+      <section class="grid">
+        <article class="card">
+          <h2>业务类型</h2>
+          <p>1) 软件开发服务：Web 应用、后端接口、支付集成、部署自动化。</p>
+          <p>2) 电子商务：交易流程设计、支付接入、会员与内容型增长产品建设。</p>
+        </article>
+
+        <article class="card">
+          <h2>产品列表</h2>
+          <div class="products">
+            <a class="link" href="/minimaths.html">
+              <div class="name">MiniMaths</div>
+              <div class="desc">移动端数学练习与排行榜系统</div>
+            </a>
+            <a class="link" href="/mini-eng.html">
+              <div class="name">miniEng</div>
+              <div class="desc">英语语音作答与 AI 评分模块</div>
+            </a>
+            <a class="link" href="/xiaoguwen.html">
+              <div class="name">小古文</div>
+              <div class="desc">古诗文互动填空学习模块</div>
+            </a>
+            <a class="link" href="/novel.html">
+              <div class="name">novel</div>
+              <div class="desc">众创小说树状分支创作与阅读平台</div>
+            </a>
+          </div>
+        </article>
+      </section>
+
+      <div class="footer">POLYBOX © 2026</div>
+    </main>
+  </body>
+</html>

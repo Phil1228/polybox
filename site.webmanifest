@@ -1,7 +1,7 @@
 {
   "name": "MiniMaths",
   "short_name": "MiniMaths",
-  "start_url": "/",
+  "start_url": "/minimaths.html",
   "display": "standalone",
   "background_color": "#f4f6fb",
   "theme_color": "#2f6fff",

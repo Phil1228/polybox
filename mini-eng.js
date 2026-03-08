@@ -17,6 +17,7 @@ const navMinimathsBtn = document.getElementById("nav-minimaths-btn");
 const navMiniEngBtn = document.getElementById("nav-mini-eng-btn");
 const navXiaoguwenBtn = document.getElementById("nav-xiaoguwen-btn");
 const navNovelBtn = document.getElementById("nav-novel-btn");
+const navSpeedBtn = document.getElementById("nav-speed-btn");
 const navRechargeBtn = document.getElementById("nav-recharge-btn");
 const navCloseBtn = document.getElementById("nav-close-btn");
 const aiProviderSelect = document.getElementById("ai-provider");
@@ -291,7 +292,7 @@ navCloseBtn.addEventListener("click", () => {
 });
 
 navMinimathsBtn.addEventListener("click", () => {
-  window.location.href = "/";
+  window.location.href = "/minimaths.html";
 });
 
 navMiniEngBtn.addEventListener("click", () => {
@@ -305,6 +306,10 @@ navXiaoguwenBtn.addEventListener("click", () => {
 
 navNovelBtn.addEventListener("click", () => {
   window.location.href = "/novel.html";
+});
+
+navSpeedBtn.addEventListener("click", () => {
+  window.location.href = "/processing-speed.html";
 });
 
 navRechargeBtn.addEventListener("click", () => {
