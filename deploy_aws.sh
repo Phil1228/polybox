@@ -187,10 +187,18 @@ if [[ -z "${NODE_BIN}" || "${NODE_MAJOR}" -lt 22 ]]; then
   exit 1
 fi
 
-ensure_base_tools
-mkdir -p "${APP_DIR}"
-tar -xzf "${ARCHIVE_PATH}" -C "${APP_DIR}"
-mkdir -p "${APP_DIR}/data"
+  ensure_base_tools
+  mkdir -p "${APP_DIR}"
+  # Extract release archive.
+  # On Linux, macOS-created tarballs may contain extended-attribute headers like
+  # 'LIBARCHIVE.xattr.com.apple.provenance'. They are harmless, but very noisy.
+  # Try to suppress those warnings when GNU tar is available; fall back otherwise.
+  if tar --warning=no-unknown-keyword -xzf "${ARCHIVE_PATH}" -C "${APP_DIR}" 2>/dev/null; then
+    :
+  else
+    tar -xzf "${ARCHIVE_PATH}" -C "${APP_DIR}"
+  fi
+  mkdir -p "${APP_DIR}/data"
 ensure_system_cjk_fonts
 cd "${APP_DIR}"
 if [[ -f "package-lock.json" ]]; then
