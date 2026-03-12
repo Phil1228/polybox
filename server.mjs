@@ -1156,71 +1156,71 @@ createServer(async (req, res) => {
     if (await handleApi(req, res, pathname)) return;
 
     if (pathname === "/") {
-      sendFile(res, "polybox.html");
+      sendFile(res, "pages/polybox/index.html");
       return;
     }
     if (pathname === "/polybox.html") {
-      sendFile(res, "polybox.html");
+      sendFile(res, "pages/polybox/index.html");
       return;
     }
     if (pathname === "/minimaths.html") {
-      sendFile(res, "index.html");
+      sendFile(res, "games/minimaths/index.html");
       return;
     }
     if (pathname === "/mini-eng.html") {
-      sendFile(res, "mini-eng.html");
+      sendFile(res, "games/mini-eng/index.html");
       return;
     }
     if (pathname === "/xiaoguwen.html") {
-      sendFile(res, "xiaoguwen.html");
+      sendFile(res, "games/xiaoguwen/index.html");
       return;
     }
     if (pathname === "/novel.html") {
-      sendFile(res, "novel.html");
+      sendFile(res, "games/novel/index.html");
       return;
     }
     if (pathname === "/processing-speed.html") {
-      sendFile(res, "processing-speed.html");
+      sendFile(res, "games/processing-speed/index.html");
       return;
     }
     if (pathname === "/recharge.html") {
-      sendFile(res, "recharge.html");
+      sendFile(res, "pages/recharge/index.html");
       return;
     }
     if (pathname === "/app.js") {
-      sendFile(res, "app.js");
+      sendFile(res, "games/minimaths/app.js");
       return;
     }
     if (pathname === "/mini-eng.js") {
-      sendFile(res, "mini-eng.js");
+      sendFile(res, "games/mini-eng/mini-eng.js");
       return;
     }
     if (pathname === "/novel.js") {
-      sendFile(res, "novel.js");
+      sendFile(res, "games/novel/novel.js");
       return;
     }
     if (pathname === "/processing-speed.js") {
-      sendFile(res, "processing-speed.js");
+      sendFile(res, "games/processing-speed/processing-speed.js");
       return;
     }
     if (pathname === "/recharge.js") {
-      sendFile(res, "recharge.js");
+      sendFile(res, "pages/recharge/recharge.js");
       return;
     }
     if (pathname === "/nav-loader.js") {
-      sendFile(res, "nav-loader.js");
+      sendFile(res, "shared/nav-loader.js");
       return;
     }
     if (pathname === "/xiaoguwen.js") {
-      sendFile(res, "xiaoguwen.js");
+      sendFile(res, "games/xiaoguwen/xiaoguwen.js");
       return;
     }
     if (pathname === "/minimaths-icon.svg") {
-      sendFile(res, "minimaths-icon.svg");
+      sendFile(res, "games/minimaths/assets/minimaths-icon.svg");
       return;
     }
     if (pathname === "/novel-icon.svg") {
-      sendFile(res, "novel-icon.svg");
+      sendFile(res, "games/novel/assets/novel-icon.svg");
       return;
     }
     if (pathname === "/novel-icon-192.png") {
@@ -1248,11 +1248,11 @@ createServer(async (req, res) => {
       return;
     }
     if (pathname === "/site.webmanifest") {
-      sendFile(res, "site.webmanifest");
+      sendFile(res, "games/minimaths/assets/site.webmanifest");
       return;
     }
     if (pathname === "/novel.webmanifest") {
-      sendFile(res, "novel.webmanifest");
+      sendFile(res, "games/novel/assets/novel.webmanifest");
       return;
     }
     if (pathname === "/favicon.ico") {
