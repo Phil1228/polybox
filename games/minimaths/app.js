@@ -35,6 +35,7 @@ const mobileQuery = window.matchMedia("(max-width: 760px)");
 const USERNAME_COOKIE_KEY = "minimaths_username";
 const SETTINGS_COOKIE_KEY = "minimaths_settings";
 const LEADERBOARD_FILTER_COOKIE_KEY = "minimaths_leaderboard_filter";
+const USER_TOKEN_KEY = "minimaths_user_token";
 
 let correct = 0;
 let input = "";
@@ -76,6 +77,37 @@ function setCookieValue(key, value, days) {
   const maxAge = Math.max(0, Math.floor(days * 24 * 60 * 60));
   document.cookie =
     key + "=" + encodeURIComponent(value) + "; Max-Age=" + maxAge + "; Path=/; SameSite=Lax";
+}
+
+async function fetchUserNickname() {
+  const token = localStorage.getItem(USER_TOKEN_KEY) || "";
+  if (!token) return "";
+  try {
+    const res = await fetch("/api/users/me", {
+      headers: { Authorization: "Bearer " + token },
+    });
+    const data = await res.json();
+    return typeof data?.user?.nickname === "string" ? data.user.nickname.trim() : "";
+  } catch {
+    return "";
+  }
+}
+
+async function applyUsernameFallback() {
+  const custom = getCookieValue(USERNAME_COOKIE_KEY).trim().slice(0, 10);
+  if (custom) {
+    settings.username = custom;
+    settingUsername.value = custom;
+    return;
+  }
+  const nickname = await fetchUserNickname();
+  if (nickname) {
+    settings.username = nickname.slice(0, 10);
+    settingUsername.value = settings.username;
+    return;
+  }
+  settings.username = "匿名";
+  settingUsername.value = settings.username;
 }
 
 function loadSettingsFromCookie() {
@@ -554,7 +586,7 @@ async function bootstrapFromDb() {
     const data = await apiRequest("/api/bootstrap");
     const cookieSettings = loadSettingsFromCookie();
     settings = cookieSettings ? cookieSettings : normalizeSettings(settings);
-    settings.username = getCookieValue(USERNAME_COOKIE_KEY).slice(0, 10);
+    settings.username = getCookieValue(USERNAME_COOKIE_KEY).trim().slice(0, 10);
     history.length = 0;
     const initialHistory = (data.history || []).slice(0, settings.questionCount);
     for (const item of initialHistory) {
@@ -565,6 +597,7 @@ async function bootstrapFromDb() {
       leaderboardGroups.push(group);
     }
     renderHistory();
+    await applyUsernameFallback();
   } catch (error) {
     console.error("Failed to bootstrap from sqlite api:", error);
   }

@@ -28,6 +28,7 @@ const rankAdvancedBtn = document.getElementById("rank-advanced-btn");
 
 const USERNAME_COOKIE_KEY = "minimaths_username";
 const SPEED_LEVEL_COOKIE_KEY = "processing_speed_level";
+const USER_TOKEN_KEY = "minimaths_user_token";
 const CHAR_POOL = [
   "天",
   "地",
@@ -123,6 +124,37 @@ function getCookieValue(key) {
     if (trimmed.startsWith(key + "=")) return decodeURIComponent(trimmed.slice(key.length + 1));
   }
   return "";
+}
+
+async function fetchUserNickname() {
+  const token = localStorage.getItem(USER_TOKEN_KEY) || "";
+  if (!token) return "";
+  try {
+    const res = await fetch("/api/users/me", {
+      headers: { Authorization: "Bearer " + token },
+    });
+    const data = await res.json();
+    return typeof data?.user?.nickname === "string" ? data.user.nickname.trim() : "";
+  } catch {
+    return "";
+  }
+}
+
+async function applyUsernameFallback() {
+  const custom = getCookieValue(USERNAME_COOKIE_KEY).trim().slice(0, 10);
+  if (custom) {
+    username = custom;
+    usernameInput.value = username;
+    return;
+  }
+  const nickname = await fetchUserNickname();
+  if (nickname) {
+    username = nickname.slice(0, 10);
+    usernameInput.value = username;
+    return;
+  }
+  username = "匿名";
+  usernameInput.value = username;
 }
 
 function setCookieValue(key, value, days) {
@@ -502,7 +534,7 @@ board.addEventListener("pointercancel", onPointerEnd);
 board.addEventListener("lostpointercapture", onPointerEnd);
 window.addEventListener("resize", resizeCanvas);
 
-username = getCookieValue(USERNAME_COOKIE_KEY).slice(0, 10);
+username = getCookieValue(USERNAME_COOKIE_KEY).trim().slice(0, 10);
 level = getCookieValue(SPEED_LEVEL_COOKIE_KEY) === "advanced" ? "advanced" : "beginner";
 leaderboardLevel = level;
 setLevelUI(level);
@@ -510,3 +542,4 @@ setLeaderboardLevelUI(leaderboardLevel);
 renderHistory();
 updateRoundMeta();
 generateRound();
+applyUsernameFallback();

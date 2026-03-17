@@ -86,6 +86,8 @@ let candidateLoading = false;
 const NOVEL_LOCAL_SETTINGS_KEY = "novel_local_settings";
 const NOVEL_CURRENT_ID_COOKIE = "novel_current_id";
 const NOVEL_GUIDE_SEEN_KEY = "novel_guide_seen_v1";
+const USERNAME_COOKIE_KEY = "minimaths_username";
+const USER_TOKEN_KEY = "minimaths_user_token";
 let localSettings = {
   author: "",
   novelName: "Novel",
@@ -210,6 +212,38 @@ function setCookieValue(key, value, days) {
   const maxAge = Math.max(0, Math.floor(days * 24 * 60 * 60));
   document.cookie =
     key + "=" + encodeURIComponent(value) + "; Max-Age=" + maxAge + "; Path=/; SameSite=Lax";
+}
+
+async function fetchUserNickname() {
+  const token = localStorage.getItem(USER_TOKEN_KEY) || "";
+  if (!token) return "";
+  try {
+    const res = await fetch("/api/users/me", {
+      headers: { Authorization: "Bearer " + token },
+    });
+    const data = await res.json();
+    return typeof data?.user?.nickname === "string" ? data.user.nickname.trim() : "";
+  } catch {
+    return "";
+  }
+}
+
+async function applyAuthorFallback() {
+  if (localSettings.author && localSettings.author.trim()) return;
+  const custom = getCookieValue(USERNAME_COOKIE_KEY).trim().slice(0, 10);
+  if (custom) {
+    localSettings.author = custom;
+    applyLocalSettingsToView();
+    return;
+  }
+  const nickname = await fetchUserNickname();
+  if (nickname) {
+    localSettings.author = nickname.slice(0, 10);
+    applyLocalSettingsToView();
+    return;
+  }
+  localSettings.author = "匿名";
+  applyLocalSettingsToView();
 }
 
 function loadLocalSettings() {
@@ -980,6 +1014,7 @@ guideOverlay.addEventListener("click", (e) => {
 });
 
 loadLocalSettings();
+applyAuthorFallback();
 writeVisible = Boolean(localSettings.isAuthor);
 applyLocalSettingsToView();
 syncWriteToggle();

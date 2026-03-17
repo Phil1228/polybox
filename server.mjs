@@ -1593,6 +1593,14 @@ createServer(async (req, res) => {
       sendFile(res, "shared/nav-loader.js");
       return;
     }
+    if (pathname === "/theme.css") {
+      sendFile(res, "shared/theme.css");
+      return;
+    }
+    if (pathname === "/theme.js") {
+      sendFile(res, "shared/theme.js");
+      return;
+    }
     if (pathname === "/xiaoguwen.js") {
       sendFile(res, "games/xiaoguwen/xiaoguwen.js");
       return;

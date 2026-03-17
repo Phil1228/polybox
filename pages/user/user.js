@@ -19,6 +19,7 @@ const registerMessageEl = document.getElementById("register-message");
 
 const profileUsernameEl = document.getElementById("profile-username");
 const profileNicknameEl = document.getElementById("profile-nickname");
+const themeSelectEl = document.getElementById("theme-select");
 const avatarPreviewEl = document.getElementById("avatar-preview");
 const avatarGridEl = document.getElementById("avatar-grid");
 const profileMessageEl = document.getElementById("profile-message");
@@ -28,6 +29,7 @@ const registerBtn = document.getElementById("register-btn");
 const logoutBtn = document.getElementById("logout-btn");
 const saveProfileBtn = document.getElementById("save-profile-btn");
 const goHomeBtn = document.getElementById("go-home-btn");
+const THEME_KEY = "minimaths_theme";
 const TRANSPARENT_PIXEL =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
 
@@ -106,6 +108,7 @@ function applyProfile(user) {
   selectedAvatar = user.avatar || AVATAR_OPTIONS[0];
   avatarPreviewEl.src = selectedAvatar || TRANSPARENT_PIXEL;
   renderAvatarOptions();
+  syncThemeSelect();
 }
 
 async function handleLogin() {
@@ -188,6 +191,27 @@ function renderAvatarOptions() {
   });
 }
 
+function applyTheme(value) {
+  const root = document.documentElement;
+  if (value === "light" || value === "dark") {
+    root.setAttribute("data-theme", value);
+    localStorage.setItem(THEME_KEY, value);
+    return;
+  }
+  root.removeAttribute("data-theme");
+  localStorage.removeItem(THEME_KEY);
+}
+
+function syncThemeSelect() {
+  if (!themeSelectEl) return;
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved === "light" || saved === "dark") {
+    themeSelectEl.value = saved;
+  } else {
+    themeSelectEl.value = "system";
+  }
+}
+
 tabLogin.addEventListener("click", () => activateTab("login"));
 tabRegister.addEventListener("click", () => activateTab("register"));
 toRegisterBtn.addEventListener("click", () => activateTab("register"));
@@ -195,12 +219,14 @@ loginBtn.addEventListener("click", handleLogin);
 registerBtn.addEventListener("click", handleRegister);
 logoutBtn.addEventListener("click", handleLogout);
 saveProfileBtn.addEventListener("click", handleSaveProfile);
+themeSelectEl.addEventListener("change", () => applyTheme(themeSelectEl.value));
 goHomeBtn.addEventListener("click", () => {
   window.location.href = "/";
 });
 
 async function init() {
   activateTab("login");
+  syncThemeSelect();
   const user = await fetchMe();
   if (user) {
     applyProfile(user);

@@ -1,0 +1,228 @@
+:root {
+  color-scheme: light dark;
+  --page-bg: linear-gradient(180deg, #f7f9ff 0%, #eef2ff 52%, #f8fbff 100%);
+  --bg: #f4f7ff;
+  --panel: #eef2ff;
+  --card: #ffffff;
+  --line: rgba(26, 36, 64, 0.18);
+  --line-strong: rgba(26, 36, 64, 0.32);
+  --text: #0f172a;
+  --muted: #5b647a;
+  --primary: #2b7dff;
+  --accent: #2b7dff;
+  --accent-strong: #2b7dff;
+  --accent-2: #51b7ff;
+  --danger: #e74c3c;
+  --success: #18a058;
+  --ok: #18a058;
+  --bad: #e74c3c;
+  --btn: #ffffff;
+  --btn-border: rgba(26, 36, 64, 0.2);
+  --btn-active: #e7efff;
+  --shadow-soft: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --shadow-lift: 0 12px 30px rgba(15, 23, 42, 0.14);
+  --radius: 12px;
+  --radius-lg: 16px;
+  --focus-ring: 0 0 0 3px rgba(43, 125, 255, 0.22);
+  --highlight: linear-gradient(135deg, rgba(81, 183, 255, 0.15), rgba(43, 125, 255, 0.08));
+}
+
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap");
+
+html,
+body {
+  background: var(--page-bg) !important;
+  color: var(--text);
+  font-family: "Space Grotesk", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+body {
+  position: relative;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(43, 125, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(43, 125, 255, 0.06) 1px, transparent 1px);
+  background-size: 24px 24px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+main,
+.page {
+  position: relative;
+  z-index: 1;
+  animation: page-fade 0.5s ease both;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-lift);
+}
+
+.card:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-soft);
+}
+
+.btn,
+button.btn {
+  border-radius: var(--radius);
+  border: 1px solid var(--btn-border);
+  background: var(--btn);
+  color: var(--text);
+  box-shadow: var(--shadow-soft);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+}
+
+.btn.primary,
+button.primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.btn.secondary,
+button.secondary {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--text);
+}
+
+.btn:active,
+button:active {
+  transform: scale(0.98);
+  box-shadow: var(--shadow-soft);
+}
+
+.btn:hover,
+button:hover {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-lift);
+}
+
+input,
+select,
+textarea {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+  color: var(--text);
+  box-shadow: inset 0 1px 0 rgba(43, 125, 255, 0.08);
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: rgba(43, 125, 255, 0.6);
+  box-shadow: var(--focus-ring);
+}
+
+a {
+  color: var(--text);
+}
+
+svg {
+  stroke: currentColor;
+}
+
+hr,
+.divider {
+  border: none;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(43, 125, 255, 0.25), transparent);
+}
+
+@keyframes page-fade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page-bg: radial-gradient(circle at top, #101a32 0%, #0b1020 60%, #0a0f1d 100%);
+    --bg: #0b1020;
+    --panel: #101a32;
+    --card: #0f1a33;
+    --line: rgba(255, 255, 255, 0.12);
+    --line-strong: rgba(255, 255, 255, 0.22);
+    --text: #e6ecff;
+    --muted: #9aa8cc;
+    --btn: #0f1a33;
+    --btn-border: rgba(255, 255, 255, 0.14);
+    --btn-active: #132142;
+    --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.25);
+    --shadow-lift: 0 14px 30px rgba(0, 0, 0, 0.35);
+    --focus-ring: 0 0 0 3px rgba(81, 183, 255, 0.28);
+  }
+
+  body::before {
+    background-image:
+      linear-gradient(rgba(81, 183, 255, 0.12) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(81, 183, 255, 0.12) 1px, transparent 1px);
+  }
+
+  input,
+  select,
+  textarea {
+    background: #0c1730;
+  }
+}
+
+:root[data-theme="dark"] {
+  --page-bg: radial-gradient(circle at top, #101a32 0%, #0b1020 60%, #0a0f1d 100%);
+  --bg: #0b1020;
+  --panel: #101a32;
+  --card: #0f1a33;
+  --line: rgba(255, 255, 255, 0.12);
+  --line-strong: rgba(255, 255, 255, 0.22);
+  --text: #e6ecff;
+  --muted: #9aa8cc;
+  --btn: #0f1a33;
+  --btn-border: rgba(255, 255, 255, 0.14);
+  --btn-active: #132142;
+  --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.25);
+  --shadow-lift: 0 14px 30px rgba(0, 0, 0, 0.35);
+  --focus-ring: 0 0 0 3px rgba(81, 183, 255, 0.28);
+}
+
+:root[data-theme="dark"] body::before {
+  background-image:
+    linear-gradient(rgba(81, 183, 255, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(81, 183, 255, 0.12) 1px, transparent 1px);
+}
+
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea {
+  background: #0c1730;
+}

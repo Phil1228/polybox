@@ -196,6 +196,8 @@
         object-fit: cover;
       }
     </style>
+    <script src="/theme.js"></script>
+    <link rel="stylesheet" href="/theme.css" />
   </head>
   <body>
     <main class="page">
@@ -246,6 +248,12 @@
             <input class="input" id="profile-nickname" placeholder="输入昵称" />
           </div>
         </div>
+        <label for="theme-select">主题</label>
+        <select class="input" id="theme-select">
+          <option value="system">跟随系统</option>
+          <option value="light">浅色</option>
+          <option value="dark">深色</option>
+        </select>
         <label>头像</label>
         <div class="avatar-row">
           <img class="avatar-preview" id="avatar-preview" alt="头像预览" />

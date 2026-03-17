@@ -11,6 +11,7 @@ const closeSettingsBtn = document.getElementById("close-settings-btn");
 const settingsMoreBtn = document.getElementById("settings-more-btn");
 const settingUsernameInput = document.getElementById("setting-username");
 const USER_TOKEN_KEY = "minimaths_user_token";
+const USERNAME_COOKIE_KEY = "minimaths_username";
 
 const POEMS = [
   {
@@ -137,9 +138,20 @@ popup.addEventListener("click", (event) => {
 
 async function loadUserNickname() {
   if (!settingUsernameInput) return;
+  const custom = (document.cookie || "")
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(USERNAME_COOKIE_KEY + "="));
+  if (custom) {
+    const value = decodeURIComponent(custom.slice(USERNAME_COOKIE_KEY.length + 1)).trim().slice(0, 10);
+    if (value) {
+      settingUsernameInput.value = value;
+      return;
+    }
+  }
   const token = localStorage.getItem(USER_TOKEN_KEY) || "";
   if (!token) {
-    settingUsernameInput.value = "";
+    settingUsernameInput.value = "匿名";
     return;
   }
   try {
@@ -147,10 +159,10 @@ async function loadUserNickname() {
       headers: { Authorization: "Bearer " + token },
     });
     const data = await res.json();
-    const nickname = data?.user?.nickname || "";
-    settingUsernameInput.value = nickname;
+    const nickname = typeof data?.user?.nickname === "string" ? data.user.nickname.trim() : "";
+    settingUsernameInput.value = nickname || "匿名";
   } catch {
-    settingUsernameInput.value = "";
+    settingUsernameInput.value = "匿名";
   }
 }
 
