@@ -156,12 +156,75 @@
       .popup-actions {
         margin-top: 14px;
       }
+
+      .settings-popup {
+        position: fixed;
+        inset: 0;
+        z-index: 60;
+        background: rgba(0, 0, 0, 0.28);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+      }
+
+      .settings-popup.is-open {
+        display: flex;
+      }
+
+      .settings-card {
+        width: min(92vw, 420px);
+        background: #fff;
+        border-radius: 14px;
+        padding: 16px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .settings-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .settings-title {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 700;
+      }
+
+      .settings-more-btn {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 4px 10px;
+        background: #fff;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .setting-label {
+        font-size: 14px;
+        color: #68727f;
+      }
+
+      .setting-input {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        min-height: 42px;
+        padding: 0 10px;
+        font-size: 15px;
+        background: #fff;
+        color: var(--text);
+      }
     </style>
   </head>
   <body>
     <main class="page">
       <section class="toolbar">
-        <button class="btn" onclick="window.location.href='/minimaths.html?openNav=1'">返回导航</button>
+        <button class="btn" id="open-settings-btn">设置</button>
         <button class="btn primary" id="next-poem-btn">换一首</button>
       </section>
 
@@ -180,6 +243,20 @@
         <p class="popup-text" id="analysis-text"></p>
         <div class="popup-actions">
           <button class="btn primary" id="next-in-popup-btn" style="width: 100%">下一首</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-popup" id="settings-popup">
+      <div class="settings-card">
+        <div class="settings-header">
+          <h2 class="settings-title">设置</h2>
+          <button class="settings-more-btn" id="settings-more-btn">more</button>
+        </div>
+        <label class="setting-label" for="setting-username">用户名</label>
+        <input class="setting-input" id="setting-username" placeholder="未登录则为空" />
+        <div class="popup-actions">
+          <button class="btn primary" id="close-settings-btn" style="width: 100%">完成</button>
         </div>
       </div>
     </div>

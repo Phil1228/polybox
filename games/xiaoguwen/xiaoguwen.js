@@ -5,6 +5,12 @@ const nextPoemBtn = document.getElementById("next-poem-btn");
 const popup = document.getElementById("congrats-popup");
 const analysisText = document.getElementById("analysis-text");
 const nextInPopupBtn = document.getElementById("next-in-popup-btn");
+const openSettingsBtn = document.getElementById("open-settings-btn");
+const settingsPopup = document.getElementById("settings-popup");
+const closeSettingsBtn = document.getElementById("close-settings-btn");
+const settingsMoreBtn = document.getElementById("settings-more-btn");
+const settingUsernameInput = document.getElementById("setting-username");
+const USER_TOKEN_KEY = "minimaths_user_token";
 
 const POEMS = [
   {
@@ -127,6 +133,43 @@ nextInPopupBtn.addEventListener("click", () => {
 
 popup.addEventListener("click", (event) => {
   if (event.target === popup) popup.classList.remove("is-open");
+});
+
+async function loadUserNickname() {
+  if (!settingUsernameInput) return;
+  const token = localStorage.getItem(USER_TOKEN_KEY) || "";
+  if (!token) {
+    settingUsernameInput.value = "";
+    return;
+  }
+  try {
+    const res = await fetch("/api/users/me", {
+      headers: { Authorization: "Bearer " + token },
+    });
+    const data = await res.json();
+    const nickname = data?.user?.nickname || "";
+    settingUsernameInput.value = nickname;
+  } catch {
+    settingUsernameInput.value = "";
+  }
+}
+
+function openSettings() {
+  settingsPopup.classList.add("is-open");
+  loadUserNickname();
+}
+
+function closeSettings() {
+  settingsPopup.classList.remove("is-open");
+}
+
+openSettingsBtn.addEventListener("click", openSettings);
+closeSettingsBtn.addEventListener("click", closeSettings);
+settingsPopup.addEventListener("click", (event) => {
+  if (event.target === settingsPopup) closeSettings();
+});
+settingsMoreBtn.addEventListener("click", () => {
+  window.location.href = "/";
 });
 
 renderPoem(pickPoem());
