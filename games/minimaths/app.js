@@ -25,6 +25,7 @@ const navXiaoguwen = document.getElementById("nav-xiaoguwen");
 const navNovel = document.getElementById("nav-novel");
 const navSpeed = document.getElementById("nav-speed");
 const navRecharge = document.getElementById("nav-recharge");
+const navUser = document.getElementById("nav-user");
 const congratsOverlay = document.getElementById("congrats-overlay");
 const settingUsername = document.getElementById("setting-username");
 const settingOptionGroups = document.querySelectorAll("[data-setting-group]");
@@ -610,7 +611,7 @@ settingsCancel.addEventListener("click", () => {
 });
 
 settingsMore.addEventListener("click", () => {
-  openNavPage();
+  window.location.href = "/";
 });
 
 for (const group of settingOptionGroups) {
@@ -709,6 +710,12 @@ navSpeed.addEventListener("click", () => {
 navRecharge.addEventListener("click", () => {
   window.location.href = "/recharge.html";
 });
+
+if (navUser) {
+  navUser.addEventListener("click", () => {
+    window.location.href = "/user.html";
+  });
+}
 
 const initParams = new URLSearchParams(window.location.search);
 if (initParams.get("openNav") === "1") {

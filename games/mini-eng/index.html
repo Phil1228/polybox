@@ -188,10 +188,38 @@
         justify-content: space-between;
       }
 
+      .nav-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
       .header-title {
         margin: 0;
         font-size: 22px;
         font-weight: 700;
+      }
+
+      .nav-user-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text);
+        padding: 0;
+      }
+
+      .nav-user-btn svg {
+        width: 22px;
+        height: 22px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.6;
       }
 
       .setting-item {
@@ -257,12 +285,26 @@
         <div class="row single">
           <button class="btn primary" id="voice-btn" style="width: 100%">回答</button>
         </div>
+        <div class="row">
+          <input
+            class="setting-input"
+            id="text-answer-input"
+            placeholder="也可以直接输入英文答案（可选）"
+            autocomplete="off"
+          />
+          <button class="btn" id="text-submit-btn">提交</button>
+        </div>
         <div class="status" id="voice-status">准备就绪</div>
         <div class="answer-box" id="answer-text">请点击“回答”并用英文作答</div>
       </section>
 
       <section class="card">
-        <h2 class="title" style="font-size: 20px; text-align: left">AI 评分</h2>
+        <h2 class="title" style="font-size: 20px; text-align: left">
+          AI 评分
+          <span id="score-source" style="margin-left: 8px; font-size: 13px; color: #7a7f8a; font-weight: 400">
+            （该评分来自于本地模型）
+          </span>
+        </h2>
         <div class="scores">
           <div class="score-item">
             <div class="score-label">语法</div>
@@ -291,6 +333,15 @@
         <h2 class="header-title">设置</h2>
         <button class="btn" id="settings-more-btn">more</button>
       </div>
+      <section class="setting-item">
+        <div class="setting-label">题型</div>
+        <select class="setting-select" id="question-mode">
+          <option value="default">默认（随机）</option>
+          <option value="qa">口语问答</option>
+          <option value="spoken_expression">口语表达</option>
+        </select>
+        <div class="setting-tip">“口语表达”会给出中文场景，你用英文短语作答，AI 判断是否正确且地道。</div>
+      </section>
       <section class="setting-item">
         <div class="setting-label">大模型提供者</div>
         <select class="setting-select" id="ai-provider">

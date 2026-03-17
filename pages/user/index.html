@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f172a" />
+    <title>用户管理</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #0b1020;
+        --panel: #111a2e;
+        --card: #151f38;
+        --line: #253255;
+        --text: #e6ecff;
+        --muted: #9aa8cc;
+        --accent: #51b7ff;
+        --accent-strong: #2b7dff;
+        --danger: #ff6b6b;
+        --success: #5dd19c;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        min-height: 100%;
+        background: radial-gradient(circle at top, #142048, var(--bg) 62%);
+        color: var(--text);
+        font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+      }
+      body {
+        display: flex;
+        justify-content: center;
+        padding: 24px;
+      }
+      .page {
+        width: min(100%, 980px);
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .spacer {
+        height: 4px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .tabs {
+        display: flex;
+        gap: 8px;
+      }
+      .tab {
+        flex: 1;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px 12px;
+        background: transparent;
+        color: var(--muted);
+        font-size: 14px;
+        cursor: pointer;
+      }
+      .tab.is-active {
+        background: rgba(81, 183, 255, 0.2);
+        color: var(--text);
+        border-color: rgba(81, 183, 255, 0.6);
+      }
+      label {
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .input {
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: #0f162a;
+        color: var(--text);
+        font-size: 15px;
+      }
+      .input:focus {
+        outline: 2px solid rgba(81, 183, 255, 0.35);
+        border-color: rgba(81, 183, 255, 0.6);
+      }
+      .hint {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .btn {
+        border: none;
+        border-radius: 10px;
+        padding: 10px 16px;
+        background: var(--accent-strong);
+        color: #fff;
+        font-size: 14px;
+        cursor: pointer;
+        transition: transform 0.12s ease, box-shadow 0.12s ease;
+      }
+      .btn:hover {
+        box-shadow: 0 10px 20px rgba(43, 125, 255, 0.25);
+      }
+      .btn:active {
+        transform: scale(0.98);
+      }
+      .btn.secondary {
+        background: transparent;
+        border: 1px solid var(--line);
+        color: var(--text);
+      }
+      .btn.danger {
+        background: var(--danger);
+      }
+      .row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .message {
+        font-size: 14px;
+        min-height: 18px;
+      }
+      .message.success {
+        color: var(--success);
+      }
+      .message.error {
+        color: var(--danger);
+      }
+      .view {
+        display: none;
+      }
+      .view.is-open {
+        display: block;
+      }
+      .avatar-row {
+        display: flex;
+        gap: 14px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .avatar-preview {
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        border: 1px solid var(--line);
+        background: #0f162a;
+        object-fit: cover;
+      }
+      .profile-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      @media (min-width: 820px) {
+        .profile-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      .link-btn {
+        border: none;
+        background: transparent;
+        color: var(--accent);
+        cursor: pointer;
+        padding: 0;
+      }
+      .avatar-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+        gap: 10px;
+      }
+      .avatar-option {
+        border: 2px solid transparent;
+        border-radius: 16px;
+        background: #0f162a;
+        padding: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+      .avatar-option.is-active {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px rgba(81, 183, 255, 0.25);
+      }
+      .avatar-option img {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        object-fit: cover;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <div class="spacer"></div>
+
+      <section class="card view" id="auth-view">
+        <div class="tabs">
+          <button class="tab is-active" id="tab-login">登录</button>
+          <button class="tab" id="tab-register">注册</button>
+        </div>
+
+        <div id="login-panel">
+          <label for="login-username">用户名</label>
+          <input class="input" id="login-username" placeholder="4-16 位字母/数字/下划线" />
+          <label for="login-password">密码</label>
+          <input class="input" id="login-password" type="password" placeholder="输入密码" />
+          <div class="row">
+            <button class="btn" id="login-btn">登录</button>
+            <button class="btn secondary" id="to-register-btn">新用户注册</button>
+          </div>
+          <div class="message" id="login-message"></div>
+        </div>
+
+        <div id="register-panel" style="display: none;">
+          <label for="reg-username">用户名</label>
+          <input class="input" id="reg-username" placeholder="4-16 位字母/数字/下划线" />
+          <label for="reg-password">密码</label>
+          <input class="input" id="reg-password" type="password" placeholder="设置密码" />
+          <div class="row">
+            <button class="btn" id="register-btn">注册</button>
+          </div>
+          <div class="message" id="register-message"></div>
+        </div>
+      </section>
+
+      <section class="card view" id="profile-view">
+        <div class="row" style="justify-content: space-between; align-items: center;">
+          <h2 style="margin: 0; font-size: 18px;">用户信息</h2>
+          <button class="btn danger" id="logout-btn">登出</button>
+        </div>
+        <div class="profile-grid">
+          <div>
+            <label>用户名</label>
+            <input class="input" id="profile-username" disabled />
+          </div>
+          <div>
+            <label for="profile-nickname">昵称</label>
+            <input class="input" id="profile-nickname" placeholder="输入昵称" />
+          </div>
+        </div>
+        <label>头像</label>
+        <div class="avatar-row">
+          <img class="avatar-preview" id="avatar-preview" alt="头像预览" />
+          <div style="flex: 1;">
+            <div class="avatar-grid" id="avatar-grid"></div>
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn" id="save-profile-btn">保存资料</button>
+          <button class="btn secondary" id="go-home-btn">返回首页</button>
+        </div>
+        <div class="message" id="profile-message"></div>
+      </section>
+    </main>
+
+    <script src="/user.js"></script>
+  </body>
+</html>

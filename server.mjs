@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import { mkdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
+import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import PDFDocument from "pdfkit";
 import Stripe from "stripe";
@@ -96,6 +97,25 @@ db.exec(`
     ip TEXT NOT NULL,
     liked_at INTEGER NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    nickname TEXT NOT NULL DEFAULT '',
+    avatar TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS user_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    token TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TEXT NOT NULL,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
 `);
 
 const DEFAULT_NOVEL_ROOT_CONTENT =
@@ -143,6 +163,12 @@ if (!hasColumn("novel_contents", "parent_id")) {
 }
 if (!hasColumn("processing_speed_entries", "level")) {
   db.exec("ALTER TABLE processing_speed_entries ADD COLUMN level TEXT NOT NULL DEFAULT 'beginner'");
+}
+if (!hasColumn("users", "nickname")) {
+  db.exec("ALTER TABLE users ADD COLUMN nickname TEXT NOT NULL DEFAULT ''");
+}
+if (!hasColumn("users", "avatar")) {
+  db.exec("ALTER TABLE users ADD COLUMN avatar TEXT NOT NULL DEFAULT ''");
 }
 
 const getSettingsStmt = db.prepare(`
@@ -383,6 +409,59 @@ const readNovelRecentLikeStmt = db.prepare(`
 const insertNovelLikeLogStmt = db.prepare(`
   INSERT INTO novel_like_logs (content_id, device_id, ip, liked_at)
   VALUES (?, ?, ?, ?)
+`);
+
+const readUserByUsernameStmt = db.prepare(`
+  SELECT id, username, password_hash AS passwordHash, nickname, avatar
+  FROM users
+  WHERE username = ?
+  LIMIT 1
+`);
+
+const readUserByIdStmt = db.prepare(`
+  SELECT id, username, nickname, avatar
+  FROM users
+  WHERE id = ?
+  LIMIT 1
+`);
+
+const insertUserStmt = db.prepare(`
+  INSERT INTO users (username, password_hash)
+  VALUES (?, ?)
+`);
+
+const updateUserPasswordStmt = db.prepare(`
+  UPDATE users
+  SET password_hash = ?, updated_at = CURRENT_TIMESTAMP
+  WHERE id = ?
+`);
+
+const updateUserProfileStmt = db.prepare(`
+  UPDATE users
+  SET nickname = ?, avatar = ?, updated_at = CURRENT_TIMESTAMP
+  WHERE id = ?
+`);
+
+const insertSessionStmt = db.prepare(`
+  INSERT INTO user_sessions (user_id, token, expires_at)
+  VALUES (?, ?, ?)
+`);
+
+const readSessionStmt = db.prepare(`
+  SELECT id, user_id AS userId, expires_at AS expiresAt
+  FROM user_sessions
+  WHERE token = ?
+  LIMIT 1
+`);
+
+const deleteSessionStmt = db.prepare(`
+  DELETE FROM user_sessions
+  WHERE token = ?
+`);
+
+const deleteExpiredSessionsStmt = db.prepare(`
+  DELETE FROM user_sessions
+  WHERE expires_at <= ?
 `);
 
 function sanitizeSettings(input) {
@@ -637,7 +716,127 @@ function clampScore(value) {
   return Math.max(0, Math.min(10, Math.round(n * 10) / 10));
 }
 
-function heuristicMiniEngEvaluation(question, answer, recognitionConfidence) {
+function normalizeMiniEngText(text) {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/[’']/g, "'")
+    .replace(/[^a-z0-9\s']/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+const USERNAME_REGEX = /^[A-Za-z0-9_]{4,16}$/;
+const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
+
+function normalizeUsername(raw) {
+  return typeof raw === "string" ? raw.trim() : "";
+}
+
+function isValidUsername(username) {
+  return USERNAME_REGEX.test(username);
+}
+
+function isValidPassword(password) {
+  return typeof password === "string" && password.length >= 1 && password.length <= 64;
+}
+
+function normalizeNickname(raw) {
+  return typeof raw === "string" ? raw.trim().slice(0, 20) : "";
+}
+
+function normalizeAvatar(raw) {
+  if (typeof raw !== "string") return "";
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+  if (trimmed.length > 300000) return "";
+  return trimmed;
+}
+
+function hashPassword(password) {
+  const salt = randomBytes(16).toString("hex");
+  const derived = scryptSync(password, salt, 64).toString("hex");
+  return `scrypt$${salt}$${derived}`;
+}
+
+function verifyPassword(password, storedHash) {
+  if (typeof storedHash !== "string") return false;
+  const parts = storedHash.split("$");
+  if (parts.length !== 3 || parts[0] !== "scrypt") return false;
+  const [_, salt, expectedHex] = parts;
+  if (!salt || !expectedHex) return false;
+  const derived = scryptSync(password, salt, 64);
+  const expected = Buffer.from(expectedHex, "hex");
+  if (expected.length !== derived.length) return false;
+  return timingSafeEqual(derived, expected);
+}
+
+function getAuthToken(req, body) {
+  const header = typeof req.headers.authorization === "string" ? req.headers.authorization : "";
+  if (header.toLowerCase().startsWith("bearer ")) {
+    return header.slice(7).trim();
+  }
+  if (body && typeof body.token === "string") {
+    return body.token.trim();
+  }
+  return "";
+}
+
+function createSession(userId) {
+  deleteExpiredSessionsStmt.run(new Date().toISOString());
+  const token = randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
+  insertSessionStmt.run(userId, token, expiresAt);
+  return { token, expiresAt };
+}
+
+function getSessionUser(token) {
+  if (!token) return null;
+  const session = readSessionStmt.get(token);
+  if (!session) return null;
+  const expiresAt = new Date(session.expiresAt).getTime();
+  if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+    deleteSessionStmt.run(token);
+    return null;
+  }
+  const user = readUserByIdStmt.get(session.userId);
+  if (!user) {
+    deleteSessionStmt.run(token);
+    return null;
+  }
+  return { user, session };
+}
+
+function heuristicMiniEngEvaluation(question, answer, recognitionConfidence, meta) {
+  const mode = meta?.mode === "spoken_expression" ? "spoken_expression" : "qa";
+  const expectedAnswer = typeof meta?.expectedAnswer === "string" ? meta.expectedAnswer.trim() : "";
+
+  if (mode === "spoken_expression") {
+    const a = normalizeMiniEngText(answer);
+    const e = normalizeMiniEngText(expectedAnswer);
+    const isCorrect = e ? a === e || a.includes(e) : a.length > 0;
+    const hasExtra = e ? a.replace(e, "").trim().length > 0 : false;
+
+    const correctness = clampScore(isCorrect ? 9.2 : a.length >= 3 ? 4.8 : 2.5);
+    const naturalness = clampScore(isCorrect && !hasExtra ? 9.0 : isCorrect ? 7.8 : 4.2);
+    const pronunciation = clampScore(5 + (Number(recognitionConfidence) || 0) * 4.5);
+    const overall = clampScore((correctness + naturalness + pronunciation) / 3);
+
+    return {
+      scores: { grammar: correctness, pronunciation, expression: naturalness, overall },
+      feedback: {
+        grammar: isCorrect ? "表达含义匹配场景，答案基本正确。" : "含义可能不匹配场景，建议更贴近参考表达。",
+        pronunciation: "本次为兜底评分，发音分仅参考识别置信度。",
+        expression: isCorrect
+          ? "用法比较地道。注意在真实对话里也可以加一句 \"I'm calling it a night.\""
+          : "可以尝试更口语、更地道的固定搭配表达。",
+        overall: "目标：既要意思对，也要像母语者那样简短自然。",
+      },
+      improvedAnswer: expectedAnswer || "",
+      source: "heuristic",
+      model: "local-heuristic",
+    };
+  }
+
   const words = answer.trim().split(/\s+/).filter(Boolean);
   const wordCount = words.length;
   const hasEndPunc = /[.!?]$/.test(answer.trim());
@@ -690,6 +889,7 @@ function heuristicMiniEngEvaluation(question, answer, recognitionConfidence) {
       (answer.endsWith(".") ? answer : answer + ".") +
       " Because it is important to me.\"",
     source: "heuristic",
+    model: "local-heuristic",
   };
 }
 
@@ -719,7 +919,9 @@ function parseJsonFromText(text) {
   }
 }
 
-async function aiMiniEngEvaluation(question, answer, recognitionConfidence, aiConfig) {
+async function aiMiniEngEvaluation(question, answer, recognitionConfidence, aiConfig, meta) {
+  const mode = meta?.mode === "spoken_expression" ? "spoken_expression" : "qa";
+  const expectedAnswer = typeof meta?.expectedAnswer === "string" ? meta.expectedAnswer.trim() : "";
   const provider = typeof aiConfig?.provider === "string" ? aiConfig.provider : "";
   const keyFromRequest = typeof aiConfig?.key === "string" ? aiConfig.key.trim() : "";
   const providerPreset = getProviderConfig(provider);
@@ -739,12 +941,18 @@ async function aiMiniEngEvaluation(question, answer, recognitionConfidence, aiCo
 
   const prompt =
     "You are an English speaking coach.\n" +
-    "Given question + learner answer + ASR confidence, evaluate grammar, pronunciation, expression.\n" +
+    "You will receive JSON input.\n" +
     "Return strict JSON with shape:\n" +
     "{scores:{grammar:number,pronunciation:number,expression:number,overall:number}," +
     "feedback:{grammar:string,pronunciation:string,expression:string,overall:string},improvedAnswer:string}\n" +
     "Score range: 0-10 with one decimal.\n" +
-    "Keep feedback concise and practical in Chinese.\n";
+    "Keep feedback concise and practical in Chinese.\n" +
+    "Rules:\n" +
+    "- If mode is 'spoken_expression': the user answers with an English phrase for the given Chinese scenario.\n" +
+    "  * 'grammar' should represent correctness/meaning match.\n" +
+    "  * 'expression' should represent idiomatic/naturalness.\n" +
+    "  * pronunciation should consider recognitionConfidence but do not over-penalize.\n" +
+    "  * Use expectedAnswer as reference; accept close variants.\n";
 
   const payload = {
     model,
@@ -754,7 +962,9 @@ async function aiMiniEngEvaluation(question, answer, recognitionConfidence, aiCo
       {
         role: "user",
         content: JSON.stringify({
+          mode,
           question,
+          expectedAnswer,
           answer,
           recognitionConfidence,
         }),
@@ -795,6 +1005,7 @@ async function aiMiniEngEvaluation(question, answer, recognitionConfidence, aiCo
     },
     improvedAnswer: String(parsed?.improvedAnswer || ""),
     source: provider || "openai_env",
+    model: String(model || ""),
   };
 }
 
@@ -805,6 +1016,157 @@ async function handleApi(req, res, pathname) {
       history: getHistory(100),
       leaderboard: getLeaderboard(),
     });
+    return true;
+  }
+
+  if (req.method === "POST" && pathname === "/api/users/register") {
+    const body = JSON.parse((await readBody(req)) || "{}");
+    const username = normalizeUsername(body.username);
+    const password = typeof body.password === "string" ? body.password : "";
+
+    if (!isValidUsername(username)) {
+      badRequest(res, "用户名需为 4-16 位字母/数字/下划线");
+      return true;
+    }
+    if (!isValidPassword(password)) {
+      badRequest(res, "密码不能为空且长度不超过 64");
+      return true;
+    }
+
+    const existing = readUserByUsernameStmt.get(username);
+    if (existing) {
+      json(res, 409, { error: "用户名已被占用" });
+      return true;
+    }
+
+    let userId = 0;
+    try {
+      const passwordHash = hashPassword(password);
+      const result = insertUserStmt.run(username, passwordHash);
+      userId = Number(result.lastInsertRowid);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("UNIQUE")) {
+        json(res, 409, { error: "用户名已被占用" });
+        return true;
+      }
+      throw error;
+    }
+    const session = createSession(userId);
+    json(res, 200, {
+      ok: true,
+      user: { id: userId, username, nickname: "", avatar: "" },
+      token: session.token,
+      expiresAt: session.expiresAt,
+    });
+    return true;
+  }
+
+  if (req.method === "POST" && pathname === "/api/users/login") {
+    const body = JSON.parse((await readBody(req)) || "{}");
+    const username = normalizeUsername(body.username);
+    const password = typeof body.password === "string" ? body.password : "";
+
+    if (!isValidUsername(username) || !isValidPassword(password)) {
+      badRequest(res, "用户名或密码不正确");
+      return true;
+    }
+
+    const user = readUserByUsernameStmt.get(username);
+    if (!user || !verifyPassword(password, user.passwordHash)) {
+      json(res, 401, { error: "用户名或密码不正确" });
+      return true;
+    }
+
+    const session = createSession(user.id);
+    json(res, 200, {
+      ok: true,
+      user: { id: user.id, username: user.username, nickname: user.nickname || "", avatar: user.avatar || "" },
+      token: session.token,
+      expiresAt: session.expiresAt,
+    });
+    return true;
+  }
+
+  if (req.method === "POST" && pathname === "/api/users/logout") {
+    const body = JSON.parse((await readBody(req)) || "{}");
+    const token = getAuthToken(req, body);
+    if (!token) {
+      badRequest(res, "Missing token");
+      return true;
+    }
+    deleteSessionStmt.run(token);
+    json(res, 200, { ok: true });
+    return true;
+  }
+
+  if (req.method === "GET" && pathname === "/api/users/me") {
+    const token = getAuthToken(req, null);
+    const sessionUser = getSessionUser(token);
+    if (!sessionUser) {
+      json(res, 200, { user: null });
+      return true;
+    }
+    json(res, 200, {
+      user: {
+        id: sessionUser.user.id,
+        username: sessionUser.user.username,
+        nickname: sessionUser.user.nickname || "",
+        avatar: sessionUser.user.avatar || "",
+      },
+      expiresAt: sessionUser.session.expiresAt,
+    });
+    return true;
+  }
+
+  if (req.method === "POST" && pathname === "/api/users/password") {
+    const body = JSON.parse((await readBody(req)) || "{}");
+    const token = getAuthToken(req, body);
+    const oldPassword = typeof body.oldPassword === "string" ? body.oldPassword : "";
+    const newPassword = typeof body.newPassword === "string" ? body.newPassword : "";
+
+    if (!token) {
+      badRequest(res, "Missing token");
+      return true;
+    }
+    if (!isValidPassword(oldPassword) || !isValidPassword(newPassword)) {
+      badRequest(res, "密码不能为空且长度不超过 64");
+      return true;
+    }
+
+    const sessionUser = getSessionUser(token);
+    if (!sessionUser) {
+      json(res, 401, { error: "未登录或登录已过期" });
+      return true;
+    }
+
+    const fullUser = readUserByUsernameStmt.get(sessionUser.user.username);
+    if (!fullUser || !verifyPassword(oldPassword, fullUser.passwordHash)) {
+      json(res, 401, { error: "原密码不正确" });
+      return true;
+    }
+
+    updateUserPasswordStmt.run(hashPassword(newPassword), fullUser.id);
+    json(res, 200, { ok: true });
+    return true;
+  }
+
+  if (req.method === "POST" && pathname === "/api/users/profile") {
+    const body = JSON.parse((await readBody(req)) || "{}");
+    const token = getAuthToken(req, body);
+    if (!token) {
+      badRequest(res, "Missing token");
+      return true;
+    }
+    const sessionUser = getSessionUser(token);
+    if (!sessionUser) {
+      json(res, 401, { error: "未登录或登录已过期" });
+      return true;
+    }
+    const nickname = normalizeNickname(body.nickname);
+    const avatar = normalizeAvatar(body.avatar);
+    updateUserProfileStmt.run(nickname, avatar, sessionUser.user.id);
+    json(res, 200, { ok: true, user: { ...sessionUser.user, nickname, avatar } });
     return true;
   }
 
@@ -894,7 +1256,9 @@ async function handleApi(req, res, pathname) {
 
   if (req.method === "POST" && pathname === "/api/mini-eng/evaluate") {
     const body = JSON.parse((await readBody(req)) || "{}");
+    const mode = body.mode === "spoken_expression" ? "spoken_expression" : "qa";
     const question = typeof body.question === "string" ? body.question.trim() : "";
+    const expectedAnswer = typeof body.expectedAnswer === "string" ? body.expectedAnswer.trim() : "";
     const answer = typeof body.answer === "string" ? body.answer.trim() : "";
     const recognitionConfidence = Number(body.recognitionConfidence) || 0;
     if (!question || !answer) {
@@ -903,7 +1267,10 @@ async function handleApi(req, res, pathname) {
     }
 
     try {
-      const aiResult = await aiMiniEngEvaluation(question, answer, recognitionConfidence, body.aiConfig);
+      const aiResult = await aiMiniEngEvaluation(question, answer, recognitionConfidence, body.aiConfig, {
+        mode,
+        expectedAnswer,
+      });
       if (aiResult) {
         json(res, 200, aiResult);
         return true;
@@ -912,7 +1279,14 @@ async function handleApi(req, res, pathname) {
       // Fallback to heuristic evaluation when AI call fails.
     }
 
-    json(res, 200, heuristicMiniEngEvaluation(question, answer, recognitionConfidence));
+    json(
+      res,
+      200,
+      heuristicMiniEngEvaluation(question, answer, recognitionConfidence, {
+        mode,
+        expectedAnswer,
+      }),
+    );
     return true;
   }
 
@@ -1187,6 +1561,10 @@ createServer(async (req, res) => {
       sendFile(res, "pages/recharge/index.html");
       return;
     }
+    if (pathname === "/user.html") {
+      sendFile(res, "pages/user/index.html");
+      return;
+    }
     if (pathname === "/app.js") {
       sendFile(res, "games/minimaths/app.js");
       return;
@@ -1205,6 +1583,10 @@ createServer(async (req, res) => {
     }
     if (pathname === "/recharge.js") {
       sendFile(res, "pages/recharge/recharge.js");
+      return;
+    }
+    if (pathname === "/user.js") {
+      sendFile(res, "pages/user/user.js");
       return;
     }
     if (pathname === "/nav-loader.js") {

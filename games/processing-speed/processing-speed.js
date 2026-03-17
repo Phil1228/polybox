@@ -474,7 +474,7 @@ levelAdvancedBtn.addEventListener("click", () => {
   setLevelUI(levelDraft);
 });
 settingsMoreBtn.addEventListener("click", () => {
-  window.location.href = "/minimaths.html?openNav=1";
+  window.location.href = "/";
 });
 historyBtn.addEventListener("click", () => setHistoryOpen(!historyOpen));
 historyOverlay.addEventListener("click", () => setHistoryOpen(false));

@@ -7,6 +7,7 @@ const scoreGrammar = document.getElementById("score-grammar");
 const scorePronunciation = document.getElementById("score-pronunciation");
 const scoreExpression = document.getElementById("score-expression");
 const scoreOverall = document.getElementById("score-overall");
+const scoreSourceLabel = document.getElementById("score-source");
 const feedbackList = document.getElementById("feedback-list");
 const settingsBtn = document.getElementById("settings-btn");
 const settingsPage = document.getElementById("settings-page");
@@ -20,11 +21,17 @@ const navNovelBtn = document.getElementById("nav-novel-btn");
 const navSpeedBtn = document.getElementById("nav-speed-btn");
 const navRechargeBtn = document.getElementById("nav-recharge-btn");
 const navCloseBtn = document.getElementById("nav-close-btn");
+const navUserBtn = document.getElementById("nav-user-btn");
 const aiProviderSelect = document.getElementById("ai-provider");
 const aiKeyInput = document.getElementById("ai-key");
 const settingsSaveBtn = document.getElementById("settings-save-btn");
+const questionModeSelect = document.getElementById("question-mode");
+const textAnswerInput = document.getElementById("text-answer-input");
+const textSubmitBtn = document.getElementById("text-submit-btn");
 
 const MINI_ENG_AI_COOKIE = "mini_eng_ai_config";
+const MINI_ENG_MODE_COOKIE = "mini_eng_mode";
+const AVAILABLE_MODES = ["qa", "spoken_expression"];
 
 const TOPICS = [
   "What is your favorite food and why?",
@@ -39,7 +46,19 @@ const TOPICS = [
   "If you could travel anywhere, where would you go?",
 ];
 
+const SPOKEN_EXPRESSIONS = [
+  {
+    prompt: "下班了，你会对身边的同事说什么？",
+    expected: "calling it a night",
+  },
+];
+
 let currentQuestion = "";
+// 当前这一题实际使用的模式（会传给后端）
+let currentMode = "qa"; // qa | spoken_expression | 未来更多
+// 用户设置的题型选项：qa | spoken_expression | default
+let currentModeSetting = "default";
+let currentExpected = "";
 let recognition = null;
 let transcriptFinal = "";
 let transcriptInterim = "";
@@ -83,19 +102,73 @@ function saveAiConfigToCookie() {
   setCookieValue(MINI_ENG_AI_COOKIE, JSON.stringify(aiConfig), 365);
 }
 
+function loadModeFromCookie() {
+  const raw = getCookieValue(MINI_ENG_MODE_COOKIE);
+  if (raw === "qa" || raw === "spoken_expression" || raw === "default") {
+    currentModeSetting = raw;
+  } else {
+    currentModeSetting = "default";
+  }
+}
+
+function saveModeToCookie() {
+  setCookieValue(MINI_ENG_MODE_COOKIE, currentModeSetting, 365);
+}
+
 function randomTopic() {
   const idx = Math.floor(Math.random() * TOPICS.length);
   return TOPICS[idx];
 }
 
+function randomSpokenExpression() {
+  const idx = Math.floor(Math.random() * SPOKEN_EXPRESSIONS.length);
+  return SPOKEN_EXPRESSIONS[idx];
+}
+
 function setQuestion(topic) {
+  currentExpected = "";
   currentQuestion = topic;
   questionText.textContent = topic;
+}
+
+function setSpokenExpressionQuestion(item) {
+  currentExpected = item.expected;
+  currentQuestion = item.prompt;
+  questionText.textContent = item.prompt;
+}
+
+function applyModeAndQuestionForCurrentSetting() {
+  if (currentModeSetting === "qa") {
+    currentMode = "qa";
+    setQuestion(randomTopic());
+    answerText.textContent = "请点击“回答”并用英文作答";
+    return;
+  }
+  if (currentModeSetting === "spoken_expression") {
+    currentMode = "spoken_expression";
+    setSpokenExpressionQuestion(randomSpokenExpression());
+    answerText.textContent = "请用英文短语作答（可语音或输入）";
+    return;
+  }
+
+  // 默认：从已注册题型里随机挑一个
+  const pool = AVAILABLE_MODES.length ? AVAILABLE_MODES : ["qa"];
+  const idx = Math.floor(Math.random() * pool.length);
+  const picked = pool[idx];
+  currentMode = picked;
+  if (picked === "spoken_expression") {
+    setSpokenExpressionQuestion(randomSpokenExpression());
+    answerText.textContent = "请用英文短语作答（可语音或输入）";
+  } else {
+    setQuestion(randomTopic());
+    answerText.textContent = "请点击“回答”并用英文作答";
+  }
 }
 
 function openSettings() {
   aiProviderSelect.value = aiConfig.provider || "openai";
   aiKeyInput.value = aiConfig.key || "";
+  questionModeSelect.value = currentModeSetting || "default";
   settingsPage.classList.add("is-open");
 }
 
@@ -116,6 +189,24 @@ function setScoreView(result) {
   scorePronunciation.textContent = String(result.scores.pronunciation);
   scoreExpression.textContent = String(result.scores.expression);
   scoreOverall.textContent = String(result.scores.overall);
+
+  if (scoreSourceLabel) {
+    const src = String(result.source || "").toLowerCase();
+    const model = String(result.model || "").trim();
+    let text = "（该评分来自于本地模型）";
+    if (src && src !== "heuristic") {
+      if (src.includes("qwen")) {
+        text = model ? `（该评分来自于 Qwen：${model}）` : "（该评分来自于 Qwen）";
+      } else if (src.includes("deepseek")) {
+        text = model ? `（该评分来自于 DeepSeek：${model}）` : "（该评分来自于 DeepSeek）";
+      } else if (src.includes("openai")) {
+        text = model ? `（该评分来自于 OpenAI：${model}）` : "（该评分来自于 OpenAI）";
+      } else {
+        text = model ? `（该评分来自于远程模型：${model}）` : "（该评分来自于远程模型）";
+      }
+    }
+    scoreSourceLabel.textContent = text;
+  }
 
   feedbackList.innerHTML = "";
   const lines = [
@@ -150,8 +241,8 @@ function stopRecording() {
   recognition.stop();
 }
 
-async function evaluateAnswer() {
-  const finalAnswer = (transcriptFinal || transcriptInterim).trim();
+async function evaluateAnswer(answerOverride) {
+  const finalAnswer = String(answerOverride ?? (transcriptFinal || transcriptInterim)).trim();
   if (!finalAnswer) {
     voiceStatus.textContent = "没有识别到有效语音，请再试一次";
     return;
@@ -164,9 +255,11 @@ async function evaluateAnswer() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        mode: currentMode,
         question: currentQuestion,
+        expectedAnswer: currentExpected,
         answer: finalAnswer,
-        recognitionConfidence: latestConfidence,
+        recognitionConfidence: answerOverride ? 0 : latestConfidence,
         aiConfig: {
           provider: aiConfig.provider,
           key: aiConfig.key,
@@ -192,6 +285,7 @@ function resetTranscript() {
   transcriptInterim = "";
   latestConfidence = 0;
   answerText.textContent = "请开始作答...";
+  if (textAnswerInput) textAnswerInput.value = "";
 }
 
 function ensureRecognition() {
@@ -265,6 +359,25 @@ voiceBtn.addEventListener("click", () => {
   else startRecording();
 });
 
+textSubmitBtn.addEventListener("click", async () => {
+  const typed = (textAnswerInput.value || "").trim();
+  if (!typed) {
+    voiceStatus.textContent = "请输入英文答案后再提交";
+    return;
+  }
+  transcriptFinal = typed;
+  transcriptInterim = "";
+  answerText.textContent = typed;
+  await evaluateAnswer(typed);
+});
+
+textAnswerInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    textSubmitBtn.click();
+  }
+});
+
 settingsBtn.addEventListener("click", () => {
   openSettings();
 });
@@ -278,13 +391,22 @@ settingsSaveBtn.addEventListener("click", () => {
     provider: aiProviderSelect.value || "openai",
     key: aiKeyInput.value.trim(),
   };
+  currentModeSetting =
+    questionModeSelect.value === "qa" ||
+    questionModeSelect.value === "spoken_expression" ||
+    questionModeSelect.value === "default"
+      ? questionModeSelect.value
+      : "default";
   saveAiConfigToCookie();
+  saveModeToCookie();
   closeSettings();
   voiceStatus.textContent = aiConfig.key ? "AI 配置已保存" : "已保存（未填写 Key 时将使用兜底评分）";
+  resetTranscript();
+  applyModeAndQuestionForCurrentSetting();
 });
 
 settingsMoreBtn.addEventListener("click", () => {
-  openNav();
+  window.location.href = "/";
 });
 
 navCloseBtn.addEventListener("click", () => {
@@ -316,5 +438,12 @@ navRechargeBtn.addEventListener("click", () => {
   window.location.href = "/recharge.html";
 });
 
+if (navUserBtn) {
+  navUserBtn.addEventListener("click", () => {
+    window.location.href = "/user.html";
+  });
+}
+
 loadAiConfigFromCookie();
-setQuestion(randomTopic());
+loadModeFromCookie();
+applyModeAndQuestionForCurrentSetting();

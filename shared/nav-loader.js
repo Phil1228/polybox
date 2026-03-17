@@ -6,7 +6,15 @@
   const templates = {
     index: `
 <section class="nav-page" id="nav-page">
-  <h2 class="nav-title">导航</h2>
+  <div class="nav-header">
+    <h2 class="nav-title">导航</h2>
+    <button class="nav-user-btn" id="nav-user" aria-label="用户中心">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="8" r="4"></circle>
+        <path d="M4 20c0-4 4-6 8-6s8 2 8 6"></path>
+      </svg>
+    </button>
+  </div>
   <div class="nav-actions">
     <button class="nav-button" id="nav-minimaths">minimaths</button>
     <button class="nav-button" id="nav-mini-eng">miniEng</button>
@@ -21,7 +29,15 @@
 </section>`,
     app: `
 <section class="nav-page" id="nav-page">
-  <h2 class="header-title">导航</h2>
+  <div class="nav-header">
+    <h2 class="header-title">导航</h2>
+    <button class="btn nav-user-btn" id="nav-user-btn" aria-label="用户中心">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="8" r="4"></circle>
+        <path d="M4 20c0-4 4-6 8-6s8 2 8 6"></path>
+      </svg>
+    </button>
+  </div>
   <div class="nav-actions">
     <button class="btn nav-button" id="nav-minimaths-btn">minimaths</button>
     <button class="btn nav-button" id="nav-mini-eng-btn">miniEng</button>
@@ -34,7 +50,15 @@
 </section>`,
     novel: `
 <section class="nav-page" id="nav-page">
-  <h2 class="settings-title">导航</h2>
+  <div class="nav-header">
+    <h2 class="settings-title">导航</h2>
+    <button class="btn nav-user-btn" id="nav-user-btn" aria-label="用户中心">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="8" r="4"></circle>
+        <path d="M4 20c0-4 4-6 8-6s8 2 8 6"></path>
+      </svg>
+    </button>
+  </div>
   <div class="nav-actions">
     <button class="btn nav-button" id="nav-minimaths-btn">minimaths</button>
     <button class="btn nav-button" id="nav-mini-eng-btn">miniEng</button>

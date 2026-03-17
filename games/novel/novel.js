@@ -63,6 +63,7 @@ const navXiaoguwenBtn = document.getElementById("nav-xiaoguwen-btn");
 const navNovelBtn = document.getElementById("nav-novel-btn");
 const navSpeedBtn = document.getElementById("nav-speed-btn");
 const navRechargeBtn = document.getElementById("nav-recharge-btn");
+const navUserBtn = document.getElementById("nav-user-btn");
 const openGuideBtn = document.getElementById("open-guide-btn");
 const guideOverlay = document.getElementById("guide-overlay");
 const guidePanel = document.querySelector("#guide-overlay .guide-panel");
@@ -930,7 +931,9 @@ toggleWriteBtn.addEventListener("click", () => {
 
 openSettingsBtn.addEventListener("click", openSettings);
 closeSettingsBtn.addEventListener("click", closeSettings);
-settingsMoreBtn.addEventListener("click", openNav);
+settingsMoreBtn.addEventListener("click", () => {
+  window.location.href = "/";
+});
 saveSettingsBtn.addEventListener("click", () => {
   localSettings = {
     author: settingAuthor.value.trim().slice(0, 10),
@@ -963,6 +966,11 @@ navSpeedBtn.addEventListener("click", () => {
 navRechargeBtn.addEventListener("click", () => {
   window.location.href = "/recharge.html";
 });
+if (navUserBtn) {
+  navUserBtn.addEventListener("click", () => {
+    window.location.href = "/user.html";
+  });
+}
 openGuideBtn.addEventListener("click", openGuide);
 guidePrevBtn.addEventListener("click", prevGuideStep);
 guideNextBtn.addEventListener("click", nextGuideStep);

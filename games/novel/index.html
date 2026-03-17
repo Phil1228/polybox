@@ -346,6 +346,13 @@
         display: flex;
       }
 
+      .nav-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
       .nav-actions {
         margin: auto 0;
         display: flex;
@@ -358,6 +365,27 @@
         min-height: 56px;
         font-size: 20px;
         font-weight: 700;
+      }
+
+      .nav-user-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text);
+        padding: 0;
+      }
+
+      .nav-user-btn svg {
+        width: 22px;
+        height: 22px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.6;
       }
 
       .guide-focus {
