@@ -198,6 +198,34 @@ hr,
   }
 }
 
+:root[data-theme="light"] {
+  --page-bg: linear-gradient(180deg, #f7f9ff 0%, #eef2ff 52%, #f8fbff 100%);
+  --bg: #f4f7ff;
+  --panel: #eef2ff;
+  --card: #ffffff;
+  --line: rgba(26, 36, 64, 0.18);
+  --line-strong: rgba(26, 36, 64, 0.32);
+  --text: #0f172a;
+  --muted: #5b647a;
+  --primary: #2b7dff;
+  --accent: #2b7dff;
+  --accent-strong: #2b7dff;
+  --accent-2: #51b7ff;
+  --danger: #e74c3c;
+  --success: #18a058;
+  --ok: #18a058;
+  --bad: #e74c3c;
+  --btn: #ffffff;
+  --btn-border: rgba(26, 36, 64, 0.2);
+  --btn-active: #e7efff;
+  --shadow-soft: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --shadow-lift: 0 12px 30px rgba(15, 23, 42, 0.14);
+  --radius: 12px;
+  --radius-lg: 16px;
+  --focus-ring: 0 0 0 3px rgba(43, 125, 255, 0.22);
+  --highlight: linear-gradient(135deg, rgba(81, 183, 255, 0.15), rgba(43, 125, 255, 0.08));
+}
+
 :root[data-theme="dark"] {
   --page-bg: radial-gradient(circle at top, #101a32 0%, #0b1020 60%, #0a0f1d 100%);
   --bg: #0b1020;
@@ -213,6 +241,11 @@ hr,
   --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.25);
   --shadow-lift: 0 14px 30px rgba(0, 0, 0, 0.35);
   --focus-ring: 0 0 0 3px rgba(81, 183, 255, 0.28);
+}
+
+:root[data-theme="dark"],
+:root[data-theme="dark"] body {
+  background: radial-gradient(circle at top, #101a32 0%, #0b1020 60%, #0a0f1d 100%) !important;
 }
 
 :root[data-theme="dark"] body::before {
