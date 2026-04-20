@@ -17,10 +17,12 @@
   </div>
   <div class="nav-actions">
     <button class="nav-button" id="nav-minimaths">minimaths</button>
+    <button class="nav-button" id="nav-square-cube">平方立方练习</button>
     <button class="nav-button" id="nav-mini-eng">miniEng</button>
     <button class="nav-button" id="nav-xiaoguwen">小古文</button>
     <button class="nav-button" id="nav-novel">novel</button>
     <button class="nav-button" id="nav-speed">加工速度</button>
+    <button class="nav-button" id="nav-dungeon">迷宫寻宝</button>
     <button class="nav-button" id="nav-recharge">充值</button>
   </div>
   <div class="settings-actions">
@@ -40,10 +42,12 @@
   </div>
   <div class="nav-actions">
     <button class="btn nav-button" id="nav-minimaths-btn">minimaths</button>
+    <button class="btn nav-button" id="nav-square-cube-btn">平方立方练习</button>
     <button class="btn nav-button" id="nav-mini-eng-btn">miniEng</button>
     <button class="btn nav-button" id="nav-xiaoguwen-btn">小古文</button>
     <button class="btn nav-button" id="nav-novel-btn">novel</button>
     <button class="btn nav-button" id="nav-speed-btn">加工速度</button>
+    <button class="btn nav-button" id="nav-dungeon-btn">迷宫寻宝</button>
     <button class="btn nav-button" id="nav-recharge-btn">充值</button>
   </div>
   <button class="btn" id="nav-close-btn">返回</button>
@@ -61,10 +65,12 @@
   </div>
   <div class="nav-actions">
     <button class="btn nav-button" id="nav-minimaths-btn">minimaths</button>
+    <button class="btn nav-button" id="nav-square-cube-btn">平方立方练习</button>
     <button class="btn nav-button" id="nav-mini-eng-btn">miniEng</button>
     <button class="btn nav-button" id="nav-xiaoguwen-btn">小古文</button>
     <button class="btn nav-button" id="nav-novel-btn">novel</button>
     <button class="btn nav-button" id="nav-speed-btn">加工速度</button>
+    <button class="btn nav-button" id="nav-dungeon-btn">迷宫寻宝</button>
     <button class="btn nav-button" id="nav-recharge-btn">充值</button>
   </div>
   <button class="btn" id="nav-close-btn">返回</button>
@@ -72,4 +78,16 @@
   };
 
   script.insertAdjacentHTML("beforebegin", templates[variant] || templates.index);
+  const squareCubeBtn = document.getElementById("nav-square-cube");
+  if (squareCubeBtn) {
+    squareCubeBtn.addEventListener("click", () => {
+      window.location.href = "/square-cube.html";
+    });
+  }
+  const squareCubeBtnAlt = document.getElementById("nav-square-cube-btn");
+  if (squareCubeBtnAlt) {
+    squareCubeBtnAlt.addEventListener("click", () => {
+      window.location.href = "/square-cube.html";
+    });
+  }
 })();

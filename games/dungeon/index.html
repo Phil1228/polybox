@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>dungeon | 迷宫寻宝</title>
+    <style>
+      :root {
+        --bg: #f6f1e8;
+        --bg-deep: #f0e2cf;
+        --ink: #1d1a16;
+        --muted: #6b5c48;
+        --accent: #0d6a5f;
+        --line: rgba(29, 26, 22, 0.14);
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        padding: 0;
+        min-height: 100%;
+        background: radial-gradient(circle at top, #fff3df 0%, var(--bg) 45%, var(--bg-deep) 100%);
+        color: var(--ink);
+        font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+      }
+      body {
+        display: grid;
+        place-items: center;
+        padding: 20px;
+      }
+      .card {
+        width: min(92vw, 680px);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: rgba(255, 250, 242, 0.9);
+        padding: 24px 22px;
+      }
+      .leaderboard {
+        margin-top: 18px;
+        border-top: 1px solid var(--line);
+        padding-top: 14px;
+      }
+      .leaderboard h2 {
+        margin: 0 0 8px;
+        font-size: 18px;
+      }
+      .lb-item {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 6px 0;
+        border-bottom: 1px dashed rgba(29, 26, 22, 0.12);
+        font-size: 14px;
+      }
+      .lb-item:last-child { border-bottom: none; }
+      h1 {
+        margin: 0 0 8px;
+        font-size: clamp(28px, 4vw, 40px);
+      }
+      p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+      .actions {
+        margin-top: 16px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .btn {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 10px 16px;
+        font-size: 15px;
+        font-weight: 700;
+        background: #fff;
+        text-decoration: none;
+        color: inherit;
+      }
+      .btn.primary {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+      .modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: rgba(0, 0, 0, 0.45);
+        padding: 20px;
+      }
+      .modal {
+        width: min(92vw, 420px);
+        margin: 8vh auto 0;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: #fffaf2;
+        padding: 14px;
+      }
+      .modal-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .modal-head h3 {
+        margin: 0;
+        font-size: 18px;
+      }
+      .qr-wrap {
+        display: grid;
+        place-items: center;
+        border: 1px dashed rgba(29, 26, 22, 0.2);
+        border-radius: 12px;
+        background: #fff;
+        padding: 12px;
+        margin-bottom: 10px;
+      }
+      .qr-wrap img {
+        width: min(72vw, 280px);
+        height: auto;
+        display: block;
+      }
+      .apk-link {
+        display: block;
+        text-align: center;
+        font-weight: 700;
+        color: var(--accent);
+        text-decoration: none;
+      }
+    </style>
+    <script src="/theme.js"></script>
+    <link rel="stylesheet" href="/theme.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>迷宫寻宝</h1>
+      <p>请选择模式进入。建设页与寻宝页均为独立页面，移动端会强制横屏并适配屏幕大小。</p>
+      <div class="actions">
+        <a class="btn primary" href="/dungeon-build.html">建设模式</a>
+        <a class="btn primary" href="/dungeon-hunt.html">寻宝模式</a>
+        <button class="btn" id="download-android-btn" type="button">下载安卓APP</button>
+        <a class="btn" href="/polybox.html">返回产品列表</a>
+      </div>
+      <section class="leaderboard">
+        <h2>排行榜（总积分）</h2>
+        <div id="dungeon-leaderboard">加载中...</div>
+      </section>
+    </main>
+    <div class="modal-overlay" id="apk-modal">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>下载安卓APP</h3>
+          <button class="btn" id="apk-modal-close-btn" type="button">关闭</button>
+        </div>
+        <div class="qr-wrap">
+          <img id="apk-qr-image" alt="安卓APP下载二维码" />
+        </div>
+        <a class="apk-link" id="apk-download-link" href="/upload/app-release.apk" download>点击直接下载 APK</a>
+      </div>
+    </div>
+    <script>
+      const apkPath = "/upload/app-release.apk";
+      const apkModalEl = document.getElementById("apk-modal");
+      const apkQrImageEl = document.getElementById("apk-qr-image");
+      const apkDownloadLinkEl = document.getElementById("apk-download-link");
+      const downloadAndroidBtnEl = document.getElementById("download-android-btn");
+      const apkModalCloseBtnEl = document.getElementById("apk-modal-close-btn");
+
+      function openApkModal() {
+        const downloadUrl = new URL(apkPath, window.location.origin).toString();
+        const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=" + encodeURIComponent(downloadUrl);
+        if (apkQrImageEl) apkQrImageEl.src = qrUrl;
+        if (apkDownloadLinkEl) apkDownloadLinkEl.href = downloadUrl;
+        if (apkModalEl) apkModalEl.style.display = "block";
+      }
+
+      async function loadDungeonLeaderboard() {
+        const el = document.getElementById("dungeon-leaderboard");
+        if (!el) return;
+        try {
+          const res = await fetch("/api/dungeon/leaderboard-total");
+          const data = await res.json().catch(() => ({}));
+          const items = Array.isArray(data.items) ? data.items : [];
+          if (!items.length) {
+            el.textContent = "暂无积分记录。";
+            return;
+          }
+          el.innerHTML = "";
+          items.slice(0, 20).forEach((item, idx) => {
+            const row = document.createElement("div");
+            row.className = "lb-item";
+            row.innerHTML = `<span>${idx + 1}. ${item.username || "匿名"}</span><span>${item.totalScore || 0} 分</span>`;
+            el.appendChild(row);
+          });
+        } catch {
+          el.textContent = "排行榜加载失败。";
+        }
+      }
+      downloadAndroidBtnEl?.addEventListener("click", openApkModal);
+      apkModalCloseBtnEl?.addEventListener("click", () => {
+        if (apkModalEl) apkModalEl.style.display = "none";
+      });
+      apkModalEl?.addEventListener("click", (event) => {
+        if (event.target === apkModalEl) {
+          apkModalEl.style.display = "none";
+        }
+      });
+      loadDungeonLeaderboard();
+    </script>
+  </body>
+</html>

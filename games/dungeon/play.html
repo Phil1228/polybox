@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>dungeon | 迷宫寻宝 · 玩法页</title>
+    <style>
+      :root {
+        --bg: #f6f1e8;
+        --bg-deep: #f0e2cf;
+        --ink: #1d1a16;
+        --muted: #6b5c48;
+        --accent: #0d6a5f;
+        --card: #fffaf2;
+        --line: rgba(29, 26, 22, 0.14);
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        padding: 0;
+        min-height: 100%;
+        background: radial-gradient(circle at top, #fff3df 0%, var(--bg) 45%, var(--bg-deep) 100%);
+        color: var(--ink);
+        font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+      }
+      body { padding: 12px; }
+      a { color: inherit; text-decoration: none; }
+      .page {
+        width: min(98vw, 1260px);
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 14px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.6);
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+      }
+      .brand-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: var(--accent);
+        box-shadow: 0 0 0 4px rgba(13, 106, 95, 0.15);
+      }
+      .top-actions { display: flex; gap: 8px; }
+      .panel {
+        padding: 14px;
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: var(--card);
+      }
+      .hero {
+        border-radius: 20px;
+        padding: 16px 18px;
+        border: 1px solid var(--line);
+        background: linear-gradient(135deg, #fffaf2, #f6e7d0 55%, #ffe8bd);
+      }
+      .hero h1 {
+        margin: 0 0 6px;
+        font-size: clamp(22px, 2.4vw, 34px);
+      }
+      .subtitle {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.6;
+      }
+      .mode-tabs {
+        margin-top: 10px;
+        display: flex;
+        gap: 8px;
+      }
+      .btn {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 8px 14px;
+        font-size: 14px;
+        font-weight: 700;
+        background: #fff;
+        cursor: pointer;
+      }
+      .btn.primary,
+      .btn.is-active {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+      .btn.ghost {
+        background: transparent;
+        border-style: dashed;
+      }
+      .layout {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: minmax(220px, 300px) 1fr;
+      }
+      .piece-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .piece-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+      }
+      .piece-card.is-selected .piece-preview-wrap {
+        border-color: rgba(13, 106, 95, 0.8);
+        box-shadow: 0 0 0 2px rgba(13, 106, 95, 0.22);
+      }
+      .piece-preview-wrap {
+        width: 100%;
+        padding: 6px;
+        border-radius: 10px;
+        background: #faf7f1;
+        border: 1px solid rgba(29, 26, 22, 0.08);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .piece-preview {
+        display: block;
+        max-width: 100%;
+        height: auto;
+        cursor: grab;
+        touch-action: none;
+        -webkit-user-drag: element;
+        user-select: none;
+      }
+      @media (pointer: coarse) {
+        .piece-preview {
+          -webkit-user-drag: none;
+        }
+      }
+      .piece-hint {
+        width: 100%;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+      .board {
+        width: min(54vh, 46vw, 520px);
+        max-width: 100%;
+        aspect-ratio: 1 / 1;
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        grid-template-rows: repeat(5, 1fr);
+        gap: 8px;
+      }
+      .cell {
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        display: grid;
+        place-items: center;
+        min-height: 0;
+        aspect-ratio: 1 / 1;
+        position: relative;
+        overflow: hidden;
+      }
+      #hunt-board .cell { cursor: pointer; }
+      .cell.filled { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08); }
+      .cell.drop-ok { outline: 2px solid #2d8f55; }
+      .cell.drop-bad { outline: 2px solid #b73434; }
+      .cell.preview-ok {
+        box-shadow:
+          inset 0 0 0 2px rgba(45, 143, 85, 0.95),
+          inset 0 0 0 999px rgba(45, 143, 85, 0.16);
+      }
+      .cell.preview-bad {
+        box-shadow:
+          inset 0 0 0 2px rgba(183, 52, 52, 0.95),
+          inset 0 0 0 999px rgba(183, 52, 52, 0.16);
+      }
+      .cell.preview-origin::before {
+        content: "";
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.95);
+        border: 1px solid rgba(0, 0, 0, 0.2);
+        top: 5px;
+        left: 5px;
+        z-index: 3;
+      }
+      .cell.revealed::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.38);
+      }
+      .cell-content {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+      }
+      .cell-icon { width: 40px; height: 40px; display: block; }
+      .hint-badge {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2;
+        pointer-events: none;
+        opacity: 0.5;
+      }
+      .hint-icon { width: 28px; height: 28px; display: block; }
+      .status {
+        margin-top: 10px;
+        min-height: 22px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .status.error { color: #a11d1d; }
+      .status.success { color: #0d6a5f; }
+      .actions {
+        margin-top: 10px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .hunt-layout {
+        display: grid;
+        grid-template-columns: auto minmax(240px, 1fr);
+        gap: 12px;
+        align-items: start;
+      }
+      .hunt-side {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .hunt-info-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .hint-card,
+      .hunt-status-card {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.75);
+      }
+      .hint-card { padding: 10px 12px; }
+      .hint-card .label {
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      .hint-card .value {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--ink);
+      }
+      .hunt-status-card { padding: 12px; }
+      .hunt-status-card .status {
+        margin-top: 0;
+        min-height: 0;
+      }
+      .actions {
+        margin-top: 0;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+      .actions .btn { width: 100%; }
+      .uuid-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 6px;
+      }
+      .uuid-action-row {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .uuid-edit-btn {
+        border: none;
+        background: transparent;
+        color: #6b5c48;
+        font-size: 16px;
+        cursor: pointer;
+        line-height: 1;
+        padding: 0;
+      }
+      .uuid-edit-btn.confirm {
+        color: #2e7d32;
+      }
+      .uuid-cancel-btn {
+        border: none;
+        background: transparent;
+        color: #c62828;
+        font-size: 16px;
+        cursor: pointer;
+        line-height: 1;
+        padding: 0;
+        display: none;
+      }
+      .uuid-edit-input {
+        width: 100%;
+        padding: 6px 8px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 700;
+      }
+      .hunt-actions {
+        padding-top: 2px;
+      }
+      .footer {
+        text-align: center;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .rotate-lock {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 24px;
+        background: rgba(22, 17, 12, 0.92);
+        color: #fff7ea;
+      }
+      .rotate-lock-card {
+        width: min(88vw, 360px);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.08);
+        padding: 18px 16px;
+        backdrop-filter: blur(4px);
+      }
+      .rotate-lock-title {
+        font-size: 20px;
+        font-weight: 700;
+        margin-bottom: 8px;
+      }
+      .rotate-lock-text {
+        font-size: 14px;
+        line-height: 1.6;
+        opacity: 0.95;
+      }
+      @media (max-width: 1100px) {
+        .layout { grid-template-columns: minmax(200px, 1fr) 1fr; }
+        .board { width: min(52vh, 52vw, 480px); }
+      }
+      @media (max-width: 820px) {
+        .layout,
+        .hunt-layout {
+          grid-template-columns: 1fr;
+        }
+        .board {
+          width: min(86vw, 74vh, 460px);
+          margin: 0 auto;
+        }
+      }
+      @media (orientation: portrait) and (max-width: 1024px) {
+        body.mobile-landscape-required .page {
+          display: none;
+        }
+        body.mobile-landscape-required .rotate-lock {
+          display: flex;
+        }
+      }
+    </style>
+    <script src="/theme.js"></script>
+    <link rel="stylesheet" href="/theme.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-dot"></span>
+          <span>dungeon · 迷宫寻宝</span>
+        </div>
+        <div class="top-actions">
+          <a class="btn" href="/dungeon.html">返回入口</a>
+          <a class="btn ghost" href="/polybox.html">产品列表</a>
+        </div>
+      </header>
+
+      <section class="hero">
+        <h1>迷宫寻宝 · 玩法页</h1>
+        <p class="subtitle">建造迷宫（拖拽/点放 + 旋转）并保存；切到寻宝模式按藏宝图挑战。</p>
+        <div class="mode-tabs">
+          <button class="btn is-active" id="tab-build" type="button">建造模式</button>
+          <button class="btn" id="tab-hunt" type="button">寻宝模式</button>
+        </div>
+      </section>
+
+      <section class="panel" id="build-section">
+        <h2>建造模式</h2>
+        <p class="subtitle">移动端支持点选拼图后点图纸放置，也支持长按拖拽放置。</p>
+        <div class="layout">
+          <div class="piece-list" id="piece-list"></div>
+          <div>
+            <div class="board" id="build-board"></div>
+            <div class="actions">
+              <button class="btn primary" id="save-map-btn" type="button">保存藏宝图</button>
+              <button class="btn" id="clear-build-btn" type="button">清空图纸</button>
+            </div>
+            <div class="status" id="build-status">提示：先登录账号再保存藏宝图。</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="hunt-section" style="display: none;">
+        <h2>寻宝模式</h2>
+        <div class="hunt-layout">
+          <div class="board" id="hunt-board"></div>
+          <div class="hunt-side">
+            <div class="hunt-info-grid">
+              <div class="hint-card">
+                <div class="label">剩余机会</div>
+                <div class="value" id="chances-left">5</div>
+              </div>
+              <div class="hint-card">
+                <div class="label">状态</div>
+                <div class="value" id="hunt-state">未开始</div>
+              </div>
+              <div class="hint-card">
+                <div class="label">积分</div>
+                <div class="value" id="hunt-score">0</div>
+              </div>
+              <div class="hint-card">
+                <div class="uuid-head">
+                  <div class="label" style="margin-bottom:0;">UUID</div>
+                  <div class="uuid-action-row">
+                    <button class="uuid-cancel-btn" id="hunt-uuid-cancel-btn" type="button" aria-label="取消编辑UUID">✕</button>
+                    <button class="uuid-edit-btn" id="hunt-uuid-edit-btn" type="button" aria-label="编辑UUID">✏</button>
+                  </div>
+                </div>
+                <div class="value" id="hunt-uuid-text">未指定</div>
+                <input class="uuid-edit-input" id="hunt-uuid-edit-input" placeholder="输入10位UUID" maxlength="10" style="display:none;" />
+              </div>
+            </div>
+            <div class="hunt-status-card">
+              <div class="status" id="hunt-status">暂无藏宝图，请先在建造模式保存。</div>
+            </div>
+            <div class="actions hunt-actions">
+              <button class="btn" id="reload-hunt-btn" type="button">随机藏宝图</button>
+              <button class="btn" id="restart-hunt-btn" type="button">重新挑战</button>
+              <button class="btn" id="my-hunt-history-btn" type="button">历史记录</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="footer">POLYBOX · dungeon 迷宫寻宝</div>
+    </main>
+    <div class="rotate-lock" id="rotate-lock">
+      <div class="rotate-lock-card">
+        <div class="rotate-lock-title">请横屏使用</div>
+        <div class="rotate-lock-text">此玩法页在移动端强制横屏，并会根据屏幕尺寸自动适配布局。</div>
+      </div>
+    </div>
+
+    <div id="hunt-history-modal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.45);padding:20px;">
+      <div style="max-width:600px;margin:0 auto;background:#fffaf2;border:1px solid rgba(29,26,22,.14);border-radius:14px;padding:14px;max-height:80vh;overflow:auto;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;">
+          <h3 style="margin:0;">我的寻宝记录</h3>
+          <button class="btn" id="hunt-history-close-btn" type="button">关闭</button>
+        </div>
+        <div id="hunt-history-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+      </div>
+    </div>
+
+    <script type="module" src="/dungeon.js"></script>
+  </body>
+</html>

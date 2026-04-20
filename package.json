@@ -8,6 +8,7 @@
     "stripe": "^20.4.0"
   },
   "scripts": {
-    "start": "node server.mjs"
+    "start": "node server.mjs",
+    "reset-password": "node scripts/reset-user-password.mjs"
   }
 }

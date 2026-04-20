@@ -60,6 +60,34 @@ db.exec(`
     FOREIGN KEY(entry_id) REFERENCES leaderboard_entries(id) ON DELETE CASCADE
   );
 
+  CREATE TABLE IF NOT EXISTS square_cube_history_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    equation TEXT NOT NULL,
+    time_text TEXT NOT NULL,
+    time_ms INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS square_cube_leaderboard_entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL,
+    practice_type TEXT NOT NULL DEFAULT 'square',
+    total_ms INTEGER NOT NULL,
+    total_time_text TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS square_cube_leaderboard_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    entry_id INTEGER NOT NULL,
+    item_order INTEGER NOT NULL,
+    equation TEXT NOT NULL,
+    time_text TEXT NOT NULL,
+    time_ms INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(entry_id) REFERENCES square_cube_leaderboard_entries(id) ON DELETE CASCADE
+  );
+
   CREATE TABLE IF NOT EXISTS processing_speed_entries (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL,
@@ -116,6 +144,37 @@ db.exec(`
     expires_at TEXT NOT NULL,
     FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS dungeon_maps (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL UNIQUE,
+    placements_json TEXT NOT NULL,
+    mask_colors_json TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS published_dungeon_maps (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uuid TEXT NOT NULL UNIQUE,
+    owner_user_id INTEGER NOT NULL,
+    placements_json TEXT NOT NULL,
+    mask_colors_json TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(owner_user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS dungeon_hunt_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    map_uuid TEXT NOT NULL,
+    player_user_id INTEGER NOT NULL,
+    score INTEGER NOT NULL DEFAULT 0,
+    result TEXT NOT NULL DEFAULT 'lose',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(map_uuid, player_user_id),
+    FOREIGN KEY(player_user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
 `);
 
 const DEFAULT_NOVEL_ROOT_CONTENT =
@@ -169,6 +228,9 @@ if (!hasColumn("users", "nickname")) {
 }
 if (!hasColumn("users", "avatar")) {
   db.exec("ALTER TABLE users ADD COLUMN avatar TEXT NOT NULL DEFAULT ''");
+}
+if (!hasColumn("dungeon_maps", "mask_colors_json")) {
+  db.exec("ALTER TABLE dungeon_maps ADD COLUMN mask_colors_json TEXT NOT NULL DEFAULT '[]'");
 }
 
 const getSettingsStmt = db.prepare(`
@@ -244,6 +306,59 @@ const readLeaderboardItemsStmt = db.prepare(`
     time_text AS time,
     time_ms AS timeMs
   FROM leaderboard_items
+  WHERE entry_id = ?
+  ORDER BY item_order ASC, id ASC
+`);
+
+const insertSquareCubeHistoryStmt = db.prepare(`
+  INSERT INTO square_cube_history_records (equation, time_text, time_ms)
+  VALUES (?, ?, ?)
+`);
+
+const readSquareCubeHistoryStmt = db.prepare(`
+  SELECT
+    equation,
+    time_text AS time,
+    time_ms AS timeMs
+  FROM square_cube_history_records
+  ORDER BY id DESC
+  LIMIT ?
+`);
+
+const readSquareCubeLeaderboardStmt = db.prepare(`
+  SELECT * FROM (
+    SELECT
+      id,
+      username,
+      practice_type AS type,
+      total_ms AS totalMs,
+      total_time_text AS totalTimeText,
+      ROW_NUMBER() OVER (
+        PARTITION BY practice_type
+        ORDER BY total_ms ASC, id ASC
+      ) AS rankInType
+    FROM square_cube_leaderboard_entries
+  )
+  WHERE rankInType <= 20
+  ORDER BY type ASC, rankInType ASC, id ASC
+`);
+
+const insertSquareCubeLeaderboardStmt = db.prepare(`
+  INSERT INTO square_cube_leaderboard_entries (username, practice_type, total_ms, total_time_text)
+  VALUES (?, ?, ?, ?)
+`);
+
+const insertSquareCubeLeaderboardItemStmt = db.prepare(`
+  INSERT INTO square_cube_leaderboard_items (entry_id, item_order, equation, time_text, time_ms)
+  VALUES (?, ?, ?, ?, ?)
+`);
+
+const readSquareCubeLeaderboardItemsStmt = db.prepare(`
+  SELECT
+    equation,
+    time_text AS time,
+    time_ms AS timeMs
+  FROM square_cube_leaderboard_items
   WHERE entry_id = ?
   ORDER BY item_order ASC, id ASC
 `);
@@ -464,6 +579,131 @@ const deleteExpiredSessionsStmt = db.prepare(`
   WHERE expires_at <= ?
 `);
 
+const readDungeonMapByUserStmt = db.prepare(`
+  SELECT
+    placements_json AS placementsJson,
+    mask_colors_json AS maskColorsJson,
+    updated_at AS updatedAt
+  FROM dungeon_maps
+  WHERE user_id = ?
+  LIMIT 1
+`);
+
+const upsertDungeonMapStmt = db.prepare(`
+  INSERT INTO dungeon_maps (user_id, placements_json, mask_colors_json)
+  VALUES (?, ?, ?)
+  ON CONFLICT(user_id) DO UPDATE SET
+    placements_json = excluded.placements_json,
+    mask_colors_json = excluded.mask_colors_json,
+    updated_at = CURRENT_TIMESTAMP
+`);
+
+const insertPublishedDungeonMapStmt = db.prepare(`
+  INSERT INTO published_dungeon_maps (uuid, owner_user_id, placements_json, mask_colors_json)
+  VALUES (?, ?, ?, ?)
+`);
+
+const readPublishedDungeonMapByUuidStmt = db.prepare(`
+  SELECT
+    uuid,
+    owner_user_id AS ownerUserId,
+    placements_json AS placementsJson,
+    mask_colors_json AS maskColorsJson,
+    created_at AS createdAt
+  FROM published_dungeon_maps
+  WHERE uuid = ?
+  LIMIT 1
+`);
+
+const readPublishedDungeonMapsByOwnerStmt = db.prepare(`
+  SELECT
+    p.uuid,
+    p.placements_json AS placementsJson,
+    p.mask_colors_json AS maskColorsJson,
+    p.created_at AS createdAt,
+    COUNT(r.id) AS playCount,
+    SUM(CASE WHEN r.result = 'win' THEN 1 ELSE 0 END) AS winCount
+  FROM published_dungeon_maps p
+  LEFT JOIN dungeon_hunt_records r ON r.map_uuid = p.uuid
+  WHERE p.owner_user_id = ?
+  GROUP BY p.id
+  ORDER BY p.id DESC
+`);
+
+const readDungeonHuntRecordStmt = db.prepare(`
+  SELECT
+    map_uuid AS mapUuid,
+    player_user_id AS playerUserId,
+    score,
+    result,
+    created_at AS createdAt
+  FROM dungeon_hunt_records
+  WHERE map_uuid = ? AND player_user_id = ?
+  LIMIT 1
+`);
+
+const insertDungeonHuntRecordStmt = db.prepare(`
+  INSERT INTO dungeon_hunt_records (map_uuid, player_user_id, score, result)
+  VALUES (?, ?, ?, ?)
+`);
+
+const readDungeonHuntHistoryStmt = db.prepare(`
+  SELECT
+    r.map_uuid AS mapUuid,
+    r.score,
+    r.result,
+    r.created_at AS createdAt,
+    u.username
+  FROM dungeon_hunt_records r
+  JOIN users u ON u.id = r.player_user_id
+  WHERE r.map_uuid = ?
+  ORDER BY r.created_at DESC, r.id DESC
+`);
+
+const readDungeonLeaderboardStmt = db.prepare(`
+  SELECT
+    u.id,
+    u.username,
+    COALESCE(SUM(r.score), 0) AS totalScore,
+    COUNT(r.id) AS playCount
+  FROM users u
+  LEFT JOIN dungeon_hunt_records r ON r.player_user_id = u.id
+  GROUP BY u.id, u.username
+  HAVING totalScore > 0
+  ORDER BY totalScore DESC, playCount DESC, u.id ASC
+  LIMIT 100
+`);
+
+const readRandomUnplayedDungeonMapStmt = db.prepare(`
+  SELECT
+    p.uuid,
+    p.owner_user_id AS ownerUserId,
+    p.placements_json AS placementsJson,
+    p.mask_colors_json AS maskColorsJson,
+    p.created_at AS createdAt
+  FROM published_dungeon_maps p
+  WHERE p.owner_user_id != ?
+    AND NOT EXISTS (
+      SELECT 1
+      FROM dungeon_hunt_records r
+      WHERE r.player_user_id = ?
+        AND r.map_uuid = p.uuid
+    )
+  ORDER BY RANDOM()
+  LIMIT 1
+`);
+
+const readMyDungeonHuntHistoryStmt = db.prepare(`
+  SELECT
+    r.map_uuid AS mapUuid,
+    r.score,
+    r.result,
+    r.created_at AS createdAt
+  FROM dungeon_hunt_records r
+  WHERE r.player_user_id = ?
+  ORDER BY r.created_at DESC, r.id DESC
+`);
+
 function sanitizeSettings(input) {
   const questionCountCandidates = [10, 20, 30, 40];
   const problemTypeCandidates = ["add", "subtract", "multiply", "divide", "addsubtract", "all"];
@@ -517,6 +757,39 @@ function getLeaderboard() {
   }
 
   return Array.from(grouped.values());
+}
+
+function getSquareCubeHistory(limit) {
+  return readSquareCubeHistoryStmt.all(limit);
+}
+
+function getSquareCubeLeaderboard() {
+  const rows = readSquareCubeLeaderboardStmt.all();
+  const labels = { square: "平方", cube: "立方", mixed: "混合" };
+  const grouped = new Map();
+  for (const row of rows) {
+    if (!grouped.has(row.type)) {
+      grouped.set(row.type, {
+        type: row.type,
+        typeLabel: labels[row.type] || "平方",
+        items: [],
+      });
+    }
+    grouped.get(row.type).items.push({
+      id: row.id,
+      username: row.username,
+      totalMs: row.totalMs,
+      totalTimeText: row.totalTimeText,
+      rank: row.rankInType,
+      type: row.type,
+    });
+  }
+  for (const type of ["square", "cube", "mixed"]) {
+    if (!grouped.has(type)) {
+      grouped.set(type, { type, typeLabel: labels[type], items: [] });
+    }
+  }
+  return ["square", "cube", "mixed"].map((type) => grouped.get(type));
 }
 
 function json(res, status, payload) {
@@ -694,6 +967,8 @@ function sendFile(res, filePath) {
             ? "image/svg+xml"
             : ext === ".png"
               ? "image/png"
+              : ext === ".apk"
+                ? "application/vnd.android.package-archive"
               : ext === ".webmanifest"
                 ? "application/manifest+json; charset=utf-8"
                 : "text/plain; charset=utf-8";
@@ -727,6 +1002,59 @@ function normalizeMiniEngText(text) {
 
 const USERNAME_REGEX = /^[A-Za-z0-9_]{4,16}$/;
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
+const DUNGEON_SIZE = 5;
+const DUNGEON_CELL_COUNT = DUNGEON_SIZE * DUNGEON_SIZE;
+const DUNGEON_PIECE_ORDER = ["single-bomb", "l-bomb", "line-bomb", "treasure-2x2"];
+const DUNGEON_ROTATIONS = [0, 90, 180, 270];
+const DUNGEON_MASK_COLORS = ["#f6dd8a", "#e58f7b", "#8fc8a6", "#8db6d5", "#f0a423"];
+const DUNGEON_UUID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const DUNGEON_UUID_LENGTH = 10;
+const DUNGEON_PIECES = {
+  "single-bomb": [{ dr: 0, dc: 0 }],
+  "l-bomb": [
+    { dr: 0, dc: 0 },
+    { dr: 1, dc: 0 },
+    { dr: 1, dc: 1 },
+  ],
+  "line-bomb": [
+    { dr: 0, dc: 0 },
+    { dr: 0, dc: 1 },
+    { dr: 0, dc: 2 },
+  ],
+  "treasure-2x2": [
+    { dr: 0, dc: 0 },
+    { dr: 0, dc: 1 },
+    { dr: 1, dc: 0 },
+    { dr: 1, dc: 1 },
+  ],
+};
+
+function normalizeDungeonRotation(rawRotation) {
+  const value = Number(rawRotation);
+  if (!Number.isInteger(value)) return null;
+  const mod = ((value % 360) + 360) % 360;
+  return DUNGEON_ROTATIONS.includes(mod) ? mod : null;
+}
+
+function rotateDungeonShapeOnce(shape) {
+  return shape.map((cell) => ({ dr: cell.dc, dc: -cell.dr }));
+}
+
+function normalizeDungeonShape(shape) {
+  const minRow = Math.min(...shape.map((cell) => cell.dr));
+  const minCol = Math.min(...shape.map((cell) => cell.dc));
+  return shape.map((cell) => ({ dr: cell.dr - minRow, dc: cell.dc - minCol }));
+}
+
+function getDungeonShape(pieceId, rotation) {
+  const base = DUNGEON_PIECES[pieceId] || [];
+  let shape = base.map((cell) => ({ ...cell }));
+  const steps = Math.floor((rotation || 0) / 90);
+  for (let i = 0; i < steps; i += 1) {
+    shape = rotateDungeonShapeOnce(shape);
+  }
+  return normalizeDungeonShape(shape);
+}
 
 function normalizeUsername(raw) {
   return typeof raw === "string" ? raw.trim() : "";
@@ -804,6 +1132,183 @@ function getSessionUser(token) {
     return null;
   }
   return { user, session };
+}
+
+function normalizeDungeonPlacements(rawPlacements) {
+  if (!Array.isArray(rawPlacements)) {
+    return { ok: false, error: "placements must be an array" };
+  }
+  if (rawPlacements.length !== DUNGEON_PIECE_ORDER.length) {
+    return { ok: false, error: "placements count is invalid" };
+  }
+
+  const normalized = [];
+  const seen = new Set();
+  for (const item of rawPlacements) {
+    const pieceId = typeof item?.pieceId === "string" ? item.pieceId : "";
+    const row = Number(item?.row);
+    const col = Number(item?.col);
+    const rotation = normalizeDungeonRotation(item?.rotation ?? 0);
+    if (!DUNGEON_PIECE_ORDER.includes(pieceId)) {
+      return { ok: false, error: "invalid pieceId" };
+    }
+    if (seen.has(pieceId)) {
+      return { ok: false, error: "duplicate pieceId" };
+    }
+    if (!Number.isInteger(row) || !Number.isInteger(col)) {
+      return { ok: false, error: "row/col must be integers" };
+    }
+    if (rotation === null) {
+      return { ok: false, error: "rotation must be one of 0/90/180/270" };
+    }
+    seen.add(pieceId);
+    normalized.push({ pieceId, row, col, rotation });
+  }
+
+  for (const pieceId of DUNGEON_PIECE_ORDER) {
+    if (!seen.has(pieceId)) {
+      return { ok: false, error: "missing piece" };
+    }
+  }
+
+  const occupied = new Set();
+  for (const placement of normalized) {
+    const shape = getDungeonShape(placement.pieceId, placement.rotation);
+    for (const cell of shape) {
+      const row = placement.row + cell.dr;
+      const col = placement.col + cell.dc;
+      if (row < 0 || col < 0 || row >= DUNGEON_SIZE || col >= DUNGEON_SIZE) {
+        return { ok: false, error: "piece out of board" };
+      }
+      const key = `${row},${col}`;
+      if (occupied.has(key)) {
+        return { ok: false, error: "pieces overlap" };
+      }
+      occupied.add(key);
+    }
+  }
+
+  const ordered = DUNGEON_PIECE_ORDER.map((pieceId) => normalized.find((item) => item.pieceId === pieceId));
+  return { ok: true, placements: ordered };
+}
+
+function normalizeDungeonMaskColors(rawMaskColors) {
+  if (!Array.isArray(rawMaskColors)) {
+    return { ok: false, error: "maskColors must be an array" };
+  }
+  if (rawMaskColors.length !== DUNGEON_CELL_COUNT) {
+    return { ok: false, error: "maskColors length is invalid" };
+  }
+  const counts = new Map(DUNGEON_MASK_COLORS.map((color) => [color, 0]));
+  const normalized = [];
+  for (const item of rawMaskColors) {
+    const color = typeof item === "string" ? item : "";
+    if (!counts.has(color)) {
+      return { ok: false, error: "maskColors contains invalid color" };
+    }
+    counts.set(color, (counts.get(color) || 0) + 1);
+    normalized.push(color);
+  }
+  for (const color of DUNGEON_MASK_COLORS) {
+    if ((counts.get(color) || 0) !== 5) {
+      return { ok: false, error: "each mask color must appear exactly 5 times" };
+    }
+  }
+  return { ok: true, maskColors: normalized };
+}
+
+function randomDungeonUuid() {
+  let out = "";
+  for (let i = 0; i < DUNGEON_UUID_LENGTH; i += 1) {
+    const idx = Math.floor(Math.random() * DUNGEON_UUID_ALPHABET.length);
+    out += DUNGEON_UUID_ALPHABET[idx];
+  }
+  return out;
+}
+
+function createUniqueDungeonUuid() {
+  for (let i = 0; i < 200; i += 1) {
+    const uuid = randomDungeonUuid();
+    const existing = readPublishedDungeonMapByUuidStmt.get(uuid);
+    if (!existing) return uuid;
+  }
+  throw new Error("Failed to generate unique dungeon uuid");
+}
+
+function normalizeDungeonUuid(raw) {
+  const uuid = typeof raw === "string" ? raw.trim().toUpperCase() : "";
+  if (!/^[A-Z0-9]{10}$/.test(uuid)) return "";
+  return uuid;
+}
+
+function parsePublishedDungeonMapRow(row) {
+  if (!row) return null;
+  try {
+    const placementsParsed = JSON.parse(row.placementsJson);
+    const maskParsed = JSON.parse(row.maskColorsJson);
+    const placements = normalizeDungeonPlacements(placementsParsed);
+    const maskColors = normalizeDungeonMaskColors(maskParsed);
+    if (!placements.ok || !maskColors.ok) return null;
+    return {
+      uuid: row.uuid,
+      ownerUserId: Number(row.ownerUserId),
+      placements: placements.placements,
+      maskColors: maskColors.maskColors,
+      createdAt: row.createdAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function getPublishedDungeonMap(uuid) {
+  const row = readPublishedDungeonMapByUuidStmt.get(uuid);
+  return parsePublishedDungeonMapRow(row);
+}
+
+function getMyPublishedDungeonMaps(ownerUserId) {
+  const rows = readPublishedDungeonMapsByOwnerStmt.all(ownerUserId);
+  return rows
+    .map((row) => {
+      const parsed = parsePublishedDungeonMapRow({ ...row, ownerUserId });
+      if (!parsed) return null;
+      return {
+        uuid: parsed.uuid,
+        placements: parsed.placements,
+        maskColors: parsed.maskColors,
+        createdAt: parsed.createdAt,
+        playCount: row.playCount || 0,
+        winCount: row.winCount || 0,
+      };
+    })
+    .filter(Boolean);
+}
+
+function getDungeonMapByUser(userId) {
+  const row = readDungeonMapByUserStmt.get(userId);
+  if (!row || typeof row.placementsJson !== "string") return null;
+  try {
+    const parsed = JSON.parse(row.placementsJson);
+    const normalized = normalizeDungeonPlacements(parsed);
+    if (!normalized.ok) return null;
+    let maskColors = [];
+    try {
+      const parsedMask = JSON.parse(typeof row.maskColorsJson === "string" ? row.maskColorsJson : "[]");
+      const normalizedMask = normalizeDungeonMaskColors(parsedMask);
+      if (normalizedMask.ok) {
+        maskColors = normalizedMask.maskColors;
+      }
+    } catch {
+      maskColors = [];
+    }
+    return {
+      placements: normalized.placements,
+      maskColors,
+      updatedAt: row.updatedAt,
+    };
+  } catch {
+    return null;
+  }
 }
 
 function heuristicMiniEngEvaluation(question, answer, recognitionConfidence, meta) {
@@ -1167,6 +1672,272 @@ async function handleApi(req, res, pathname) {
     const avatar = normalizeAvatar(body.avatar);
     updateUserProfileStmt.run(nickname, avatar, sessionUser.user.id);
     json(res, 200, { ok: true, user: { ...sessionUser.user, nickname, avatar } });
+    return true;
+  }
+
+  if (req.method === "GET" && pathname === "/api/dungeon/map") {
+    const token = getAuthToken(req, null);
+    const sessionUser = getSessionUser(token);
+    if (!sessionUser) {
+      json(res, 401, { error: "未登录或登录已过期" });
+      return true;
+    }
+    json(res, 200, { map: getDungeonMapByUser(sessionUser.user.id) });
+    return true;
+  }
+
+  if (req.method === "POST" && pathname === "/api/dungeon/map") {
+    const body = JSON.parse((await readBody(req)) || "{}");
+    const token = getAuthToken(req, body);
+    const sessionUser = getSessionUser(token);
+    if (!sessionUser) {
+      json(res, 401, { error: "未登录或登录已过期" });
+      return true;
+    }
+
+    const normalized = normalizeDungeonPlacements(body.placements);
+    if (!normalized.ok) {
+      badRequest(res, "Invalid dungeon map: " + normalized.error);
+      return true;
+    }
+    const normalizedMask = normalizeDungeonMaskColors(body.maskColors);
+    if (!normalizedMask.ok) {
+      badRequest(res, "Invalid dungeon map colors: " + normalizedMask.error);
+      return true;
+    }
+
+    upsertDungeonMapStmt.run(
+      sessionUser.user.id,
+      JSON.stringify(normalized.placements),
+      JSON.stringify(normalizedMask.maskColors),
+    );
+    json(res, 200, { ok: true, map: getDungeonMapByUser(sessionUser.user.id) });
+    return true;
+  }
+
+  if (req.method === "POST" && pathname === "/api/dungeon/map/publish") {
+    const body = JSON.parse((await readBody(req)) || "{}");
+    const token = getAuthToken(req, body);
+    const sessionUser = getSessionUser(token);
+    if (!sessionUser) {
+      json(res, 401, { error: "未登录或登录已过期" });
+      return true;
+    }
+    const baseMap = getDungeonMapByUser(sessionUser.user.id);
+    if (!baseMap || !Array.isArray(baseMap.placements) || !Array.isArray(baseMap.maskColors)) {
+      badRequest(res, "请先保存有效藏宝图后再发布");
+      return true;
+    }
+    const uuid = createUniqueDungeonUuid();
+    insertPublishedDungeonMapStmt.run(
+      uuid,
+      sessionUser.user.id,
+      JSON.stringify(baseMap.placements),
+      JSON.stringify(baseMap.maskColors),
+    );
+    const published = getPublishedDungeonMap(uuid);
+    json(res, 200, { ok: true, map: published });
+    return true;
+  }
+
+  if (req.method === "GET" && pathname === "/api/dungeon/maps/mine") {
+    const token = getAuthToken(req, null);
+    const sessionUser = getSessionUser(token);
+    if (!sessionUser) {
+      json(res, 401, { error: "未登录或登录已过期" });
+      return true;
+    }
+    json(res, 200, { items: getMyPublishedDungeonMaps(sessionUser.user.id) });
+    return true;
+  }
+
+  if (req.method === "GET" && pathname === "/api/dungeon/map/random") {
+    const token = getAuthToken(req, null);
+    const sessionUser = getSessionUser(token);
+    if (!sessionUser) {
+      json(res, 401, { error: "未登录或登录已过期" });
+      return true;
+    }
+    const userId = sessionUser.user.id;
+    const row = readRandomUnplayedDungeonMapStmt.get(userId, userId);
+    if (!row) {
+      json(res, 200, { map: null });
+      return true;
+    }
+    const parsed = parsePublishedDungeonMapRow(row);
+    if (!parsed) {
+      json(res, 200, { map: null });
+      return true;
+    }
+    json(res, 200, {
+      map: {
+        uuid: parsed.uuid,
+        ownerUserId: parsed.ownerUserId,
+        placements: parsed.placements,
+        maskColors: parsed.maskColors,
+        createdAt: parsed.createdAt,
+      },
+    });
+    return true;
+  }
+
+  if (req.method === "GET" && pathname === "/api/dungeon/map/public") {
+    const query = new URL(req.url || "/", `http://${HOST}:${PORT}`).searchParams;
+    const uuid = normalizeDungeonUuid(query.get("uuid"));
+    if (!uuid) {
+      badRequest(res, "Invalid uuid");
+      return true;
+    }
+    const map = getPublishedDungeonMap(uuid);
+    if (!map) {
+      notFound(res);
+      return true;
+    }
+    const token = getAuthToken(req, null);
+    const sessionUser = getSessionUser(token);
+    const alreadyPlayed = sessionUser
+      ? Boolean(readDungeonHuntRecordStmt.get(uuid, sessionUser.user.id))
+      : false;
+    json(res, 200, {
+      map: {
+        uuid: map.uuid,
+        ownerUserId: map.ownerUserId,
+        placements: map.placements,
+        maskColors: map.maskColors,
+        createdAt: map.createdAt,
+      },
+      alreadyPlayed,
+    });
+    return true;
+  }
+
+  if (req.method === "POST" && pathname === "/api/dungeon/hunt/submit") {
+    const body = JSON.parse((await readBody(req)) || "{}");
+    const token = getAuthToken(req, body);
+    const sessionUser = getSessionUser(token);
+    if (!sessionUser) {
+      json(res, 401, { error: "未登录或登录已过期" });
+      return true;
+    }
+    const uuid = normalizeDungeonUuid(body.uuid);
+    if (!uuid) {
+      badRequest(res, "Invalid uuid");
+      return true;
+    }
+    const map = getPublishedDungeonMap(uuid);
+    if (!map) {
+      notFound(res);
+      return true;
+    }
+    const score = Number(body.score);
+    const safeScore = Number.isFinite(score) ? Math.max(0, Math.floor(score)) : 0;
+    const result = body.result === "win" ? "win" : "lose";
+    const existing = readDungeonHuntRecordStmt.get(uuid, sessionUser.user.id);
+    if (existing) {
+      json(res, 409, { error: "你已经挑战过这张藏宝图" });
+      return true;
+    }
+    insertDungeonHuntRecordStmt.run(uuid, sessionUser.user.id, safeScore, result);
+    json(res, 200, { ok: true });
+    return true;
+  }
+
+  if (req.method === "GET" && pathname === "/api/dungeon/hunt/history") {
+    const query = new URL(req.url || "/", `http://${HOST}:${PORT}`).searchParams;
+    const uuid = normalizeDungeonUuid(query.get("uuid"));
+    if (!uuid) {
+      badRequest(res, "Invalid uuid");
+      return true;
+    }
+    const map = getPublishedDungeonMap(uuid);
+    if (!map) {
+      notFound(res);
+      return true;
+    }
+    json(res, 200, { items: readDungeonHuntHistoryStmt.all(uuid) });
+    return true;
+  }
+
+  if (req.method === "GET" && pathname === "/api/dungeon/hunt/my-history") {
+    const token = getAuthToken(req, null);
+    const sessionUser = getSessionUser(token);
+    if (!sessionUser) {
+      json(res, 401, { error: "未登录或登录已过期" });
+      return true;
+    }
+    json(res, 200, { items: readMyDungeonHuntHistoryStmt.all(sessionUser.user.id) });
+    return true;
+  }
+
+  if (req.method === "GET" && pathname === "/api/dungeon/leaderboard-total") {
+    json(res, 200, { items: readDungeonLeaderboardStmt.all() });
+    return true;
+  }
+
+  if (req.method === "GET" && pathname === "/api/square-cube/bootstrap") {
+    json(res, 200, {
+      history: getSquareCubeHistory(10),
+      groups: getSquareCubeLeaderboard(),
+    });
+    return true;
+  }
+
+  if (req.method === "POST" && pathname === "/api/square-cube/history") {
+    const body = JSON.parse((await readBody(req)) || "{}");
+    const skipInsert = Boolean(body.skipInsert);
+    const limit = Number(body.limit);
+    const normalizedLimit = Number.isInteger(limit) && limit > 0 ? Math.min(limit, 200) : 10;
+
+    if (!skipInsert && (typeof body.equation !== "string" || typeof body.time !== "string")) {
+      badRequest(res, "Invalid square cube history payload");
+      return true;
+    }
+    if (!skipInsert) {
+      insertSquareCubeHistoryStmt.run(body.equation, body.time, Number(body.timeMs) || 0);
+    }
+    json(res, 200, { history: getSquareCubeHistory(normalizedLimit) });
+    return true;
+  }
+
+  if (req.method === "GET" && pathname === "/api/square-cube/leaderboard") {
+    json(res, 200, { groups: getSquareCubeLeaderboard() });
+    return true;
+  }
+
+  const squareCubeDetailMatch = pathname.match(/^\/api\/square-cube\/leaderboard\/(\d+)\/items$/);
+  if (req.method === "GET" && squareCubeDetailMatch) {
+    const entryId = Number(squareCubeDetailMatch[1]);
+    json(res, 200, { items: readSquareCubeLeaderboardItemsStmt.all(entryId) });
+    return true;
+  }
+
+  if (req.method === "POST" && pathname === "/api/square-cube/round") {
+    const body = JSON.parse((await readBody(req)) || "{}");
+    const username = typeof body.username === "string" && body.username.trim() ? body.username.trim().slice(0, 10) : "匿名";
+    const type = body.type === "cube" || body.type === "mixed" ? body.type : "square";
+    const totalMs = Number(body.totalMs) || 0;
+    const totalTimeText = typeof body.totalTimeText === "string" ? body.totalTimeText : "0s";
+    const items = Array.isArray(body.items) ? body.items : [];
+
+    db.exec("BEGIN");
+    try {
+      const result = insertSquareCubeLeaderboardStmt.run(username, type, totalMs, totalTimeText);
+      const entryId = Number(result.lastInsertRowid);
+      items.forEach((item, index) => {
+        insertSquareCubeLeaderboardItemStmt.run(
+          entryId,
+          index,
+          String(item.equation || ""),
+          String(item.time || "0s"),
+          Number(item.timeMs) || 0,
+        );
+      });
+      db.exec("COMMIT");
+      json(res, 200, { ok: true, groups: getSquareCubeLeaderboard() });
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
     return true;
   }
 
@@ -1541,6 +2312,10 @@ createServer(async (req, res) => {
       sendFile(res, "games/minimaths/index.html");
       return;
     }
+    if (pathname === "/square-cube.html") {
+      sendFile(res, "games/square-cube/index.html");
+      return;
+    }
     if (pathname === "/mini-eng.html") {
       sendFile(res, "games/mini-eng/index.html");
       return;
@@ -1557,6 +2332,22 @@ createServer(async (req, res) => {
       sendFile(res, "games/processing-speed/index.html");
       return;
     }
+    if (pathname === "/dungeon.html") {
+      sendFile(res, "games/dungeon/index.html");
+      return;
+    }
+    if (pathname === "/dungeon-play.html") {
+      sendFile(res, "games/dungeon/play.html");
+      return;
+    }
+    if (pathname === "/dungeon-build.html") {
+      sendFile(res, "games/dungeon/build.html");
+      return;
+    }
+    if (pathname === "/dungeon-hunt.html") {
+      sendFile(res, "games/dungeon/hunt.html");
+      return;
+    }
     if (pathname === "/recharge.html") {
       sendFile(res, "pages/recharge/index.html");
       return;
@@ -1569,6 +2360,10 @@ createServer(async (req, res) => {
       sendFile(res, "games/minimaths/app.js");
       return;
     }
+    if (pathname === "/square-cube.js") {
+      sendFile(res, "games/square-cube/app.js");
+      return;
+    }
     if (pathname === "/mini-eng.js") {
       sendFile(res, "games/mini-eng/mini-eng.js");
       return;
@@ -1579,6 +2374,10 @@ createServer(async (req, res) => {
     }
     if (pathname === "/processing-speed.js") {
       sendFile(res, "games/processing-speed/processing-speed.js");
+      return;
+    }
+    if (pathname === "/dungeon.js") {
+      sendFile(res, "games/dungeon/dungeon.js");
       return;
     }
     if (pathname === "/recharge.js") {
@@ -1643,6 +2442,10 @@ createServer(async (req, res) => {
     }
     if (pathname === "/novel.webmanifest") {
       sendFile(res, "games/novel/assets/novel.webmanifest");
+      return;
+    }
+    if (pathname === "/upload/app-release.apk") {
+      sendFile(res, "upload/app-release.apk");
       return;
     }
     if (pathname === "/favicon.ico") {

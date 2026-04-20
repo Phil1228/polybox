@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>dungeon | 建设模式</title>
+    <style>
+      :root {
+        --bg: #f6f1e8;
+        --bg-deep: #f0e2cf;
+        --ink: #1d1a16;
+        --muted: #6b5c48;
+        --accent: #0d6a5f;
+        --card: #fffaf2;
+        --line: rgba(29, 26, 22, 0.14);
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        padding: 0;
+        min-height: 100%;
+        background: radial-gradient(circle at top, #fff3df 0%, var(--bg) 45%, var(--bg-deep) 100%);
+        color: var(--ink);
+        font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+      }
+      body { padding: 12px; }
+      .page {
+        width: min(98vw, 1260px);
+        margin: 0 auto;
+      }
+      .panel {
+        padding: 14px;
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: var(--card);
+      }
+      .section-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+      .section-head-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+      }
+      h2 {
+        margin: 0;
+        font-size: 22px;
+        flex: 0 0 auto;
+      }
+      .subtitle {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.6;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .btn {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 8px 14px;
+        font-size: 14px;
+        font-weight: 700;
+        background: #fff;
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+      }
+      .btn.primary {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+      .layout {
+        margin-top: 10px;
+        display: grid;
+        gap: 12px;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: start;
+      }
+      .piece-pane {
+        width: min(50vw, 320px);
+        max-width: 50vw;
+      }
+      .piece-list {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: clamp(6px, 0.9vh, 10px);
+        align-content: start;
+        min-height: 0;
+      }
+      .piece-actions {
+        margin-top: 8px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .piece-status {
+        margin-top: 10px;
+      }
+      .piece-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+      }
+      .piece-card.is-selected .piece-preview-wrap {
+        border-color: rgba(13, 106, 95, 0.8);
+        box-shadow: 0 0 0 2px rgba(13, 106, 95, 0.22);
+      }
+      .piece-preview-wrap {
+        width: 100%;
+        padding: clamp(2px, 0.5vh, 6px);
+        border-radius: 8px;
+        background: #faf7f1;
+        border: 1px solid rgba(29, 26, 22, 0.08);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .piece-preview {
+        display: block;
+        max-width: 100%;
+        height: clamp(42px, 7.5vh, 92px);
+        width: auto;
+        cursor: grab;
+        touch-action: none;
+        -webkit-user-drag: element;
+        user-select: none;
+      }
+      @media (pointer: coarse) {
+        .piece-preview {
+          -webkit-user-drag: none;
+        }
+      }
+      .piece-hint {
+        width: 100%;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+      .board {
+        width: min(74vh, 46vw, 560px);
+        max-width: 100%;
+        aspect-ratio: 1 / 1;
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        grid-template-rows: repeat(5, 1fr);
+        gap: 8px;
+      }
+      .build-workspace {
+        justify-self: end;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+      }
+      .cell {
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        display: grid;
+        place-items: center;
+        min-height: 0;
+        aspect-ratio: 1 / 1;
+        position: relative;
+        overflow: hidden;
+      }
+      .cell.filled { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08); }
+      .cell.preview-ok {
+        box-shadow: inset 0 0 0 2px rgba(45, 143, 85, 0.95), inset 0 0 0 999px rgba(45, 143, 85, 0.16);
+      }
+      .cell.preview-bad {
+        box-shadow: inset 0 0 0 2px rgba(183, 52, 52, 0.95), inset 0 0 0 999px rgba(183, 52, 52, 0.16);
+      }
+      .cell.preview-origin::before {
+        content: "";
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.95);
+        border: 1px solid rgba(0, 0, 0, 0.2);
+        top: 5px;
+        left: 5px;
+        z-index: 3;
+      }
+      .cell-content {
+        position: absolute;
+        inset: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+      }
+      .cell-icon { width: 40px; height: 40px; display: block; }
+      .actions {
+        margin-top: 10px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+      .status {
+        margin-top: 10px;
+        min-height: 22px;
+        color: var(--muted);
+        font-size: 14px;
+        text-align: right;
+      }
+      .status.error { color: #a11d1d; }
+      .status.success { color: #0d6a5f; }
+      .rotate-lock {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 24px;
+        background: rgba(22, 17, 12, 0.92);
+        color: #fff7ea;
+      }
+      .rotate-lock-card {
+        width: min(88vw, 360px);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.08);
+        padding: 18px 16px;
+      }
+      @media (max-width: 820px) {
+        .section-head {
+          flex-wrap: wrap;
+          align-items: flex-start;
+        }
+        .section-head-left {
+          width: 100%;
+          flex-wrap: wrap;
+          gap: 6px 10px;
+        }
+        .subtitle {
+          white-space: normal;
+        }
+        .piece-list { grid-template-columns: 1fr; }
+        .piece-actions {
+          justify-content: center;
+        }
+        .build-workspace {
+          justify-self: end;
+          align-items: flex-end;
+        }
+        .board {
+          width: min(44vw, 70vh, 420px);
+          min-width: 170px;
+        }
+        .actions { justify-content: flex-end; }
+        .status { text-align: right; }
+      }
+      @media (orientation: portrait) and (max-width: 1024px) {
+        body.mobile-landscape-required .page { display: none; }
+        body.mobile-landscape-required .rotate-lock { display: flex; }
+      }
+    </style>
+    <script src="/theme.js"></script>
+    <link rel="stylesheet" href="/theme.css" />
+  </head>
+  <body data-default-mode="build">
+    <main class="page">
+      <section class="panel" id="build-section">
+        <div class="section-head">
+          <div class="section-head-left">
+            <h2>建设模式</h2>
+            <p class="subtitle">把左侧拼图拖到 5x5 图纸上。可点击拼图旋转，完成后保存藏宝图。</p>
+          </div>
+          <a class="btn" href="/dungeon.html">返回入口</a>
+        </div>
+        <div class="layout">
+          <div class="piece-pane">
+            <div class="piece-list" id="piece-list"></div>
+            <div class="status piece-status" id="build-status">提示：先登录账号再保存藏宝图。</div>
+            <div class="piece-actions actions">
+              <button class="btn primary" id="save-map-btn" type="button">保存藏宝图</button>
+              <button class="btn" id="publish-map-btn" type="button">发布藏宝图</button>
+              <button class="btn" id="my-maps-btn" type="button">我的藏宝图</button>
+              <button class="btn" id="clear-build-btn" type="button">清空图纸</button>
+            </div>
+          </div>
+          <div class="build-workspace">
+            <div class="board" id="build-board"></div>
+          </div>
+        </div>
+      </section>
+      <section id="hunt-section" style="display:none;"></section>
+    </main>
+    <div class="rotate-lock" id="rotate-lock">
+      <div class="rotate-lock-card">
+        <div style="font-size:20px;font-weight:700;margin-bottom:8px;">请横屏使用</div>
+        <div style="font-size:14px;line-height:1.6;">建设模式在移动端强制横屏，请旋转设备后继续。</div>
+      </div>
+    </div>
+    <div id="my-maps-modal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.45);padding:20px;">
+      <div style="max-width:900px;margin:0 auto;background:#fffaf2;border:1px solid rgba(29,26,22,.14);border-radius:14px;padding:14px;max-height:80vh;overflow:auto;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;">
+          <h3 style="margin:0;">我的藏宝图</h3>
+          <button class="btn" id="my-maps-close-btn" type="button">关闭</button>
+        </div>
+        <div id="my-maps-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;"></div>
+      </div>
+    </div>
+    <script type="module" src="/dungeon.js"></script>
+  </body>
+</html>

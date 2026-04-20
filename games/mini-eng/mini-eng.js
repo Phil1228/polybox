@@ -19,6 +19,7 @@ const navMiniEngBtn = document.getElementById("nav-mini-eng-btn");
 const navXiaoguwenBtn = document.getElementById("nav-xiaoguwen-btn");
 const navNovelBtn = document.getElementById("nav-novel-btn");
 const navSpeedBtn = document.getElementById("nav-speed-btn");
+const navDungeonBtn = document.getElementById("nav-dungeon-btn");
 const navRechargeBtn = document.getElementById("nav-recharge-btn");
 const navCloseBtn = document.getElementById("nav-close-btn");
 const navUserBtn = document.getElementById("nav-user-btn");
@@ -433,6 +434,12 @@ navNovelBtn.addEventListener("click", () => {
 navSpeedBtn.addEventListener("click", () => {
   window.location.href = "/processing-speed.html";
 });
+
+if (navDungeonBtn) {
+  navDungeonBtn.addEventListener("click", () => {
+    window.location.href = "/dungeon.html";
+  });
+}
 
 navRechargeBtn.addEventListener("click", () => {
   window.location.href = "/recharge.html";

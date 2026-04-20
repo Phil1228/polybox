@@ -20,10 +20,12 @@ const detailClose = document.getElementById("detail-close");
 const navPage = document.getElementById("nav-page");
 const navClose = document.getElementById("nav-close");
 const navMinimaths = document.getElementById("nav-minimaths");
+const navSquareCube = document.getElementById("nav-square-cube");
 const navMiniEng = document.getElementById("nav-mini-eng");
 const navXiaoguwen = document.getElementById("nav-xiaoguwen");
 const navNovel = document.getElementById("nav-novel");
 const navSpeed = document.getElementById("nav-speed");
+const navDungeon = document.getElementById("nav-dungeon");
 const navRecharge = document.getElementById("nav-recharge");
 const navUser = document.getElementById("nav-user");
 const congratsOverlay = document.getElementById("congrats-overlay");
@@ -724,6 +726,12 @@ navMinimaths.addEventListener("click", () => {
   closeDetail();
 });
 
+if (navSquareCube) {
+  navSquareCube.addEventListener("click", () => {
+    window.location.href = "/square-cube.html";
+  });
+}
+
 navMiniEng.addEventListener("click", () => {
   window.location.href = "/mini-eng.html";
 });
@@ -739,6 +747,12 @@ navNovel.addEventListener("click", () => {
 navSpeed.addEventListener("click", () => {
   window.location.href = "/processing-speed.html";
 });
+
+if (navDungeon) {
+  navDungeon.addEventListener("click", () => {
+    window.location.href = "/dungeon.html";
+  });
+}
 
 navRecharge.addEventListener("click", () => {
   window.location.href = "/recharge.html";
