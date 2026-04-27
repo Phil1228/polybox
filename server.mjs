@@ -10,15 +10,26 @@ import { getTursoClient } from "./shared/turso-client.mjs";
 const HOST = "0.0.0.0";
 const PORT = 3000;
 const ROOT = process.cwd();
+const USE_TURSO = Boolean(process.env.TURSO_DATABASE_URL && process.env.TURSO_AUTH_TOKEN);
+const IS_VERCEL = Boolean(process.env.VERCEL);
+
+// Vercel's filesystem is read-only; this project is expected to use Turso there.
+if (IS_VERCEL && !USE_TURSO) {
+  throw new Error(
+    "Turso is not configured. On Vercel set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN environment variables."
+  );
+}
+
 const DATA_DIR = resolve(ROOT, "data");
 const DB_PATH = resolve(DATA_DIR, "minimaths.db");
 
-mkdirSync(DATA_DIR, { recursive: true });
+// Local dev: file-based SQLite. Vercel: in-memory SQLite to avoid filesystem writes.
+const SQLITE_PATH = IS_VERCEL ? ":memory:" : DB_PATH;
+if (!IS_VERCEL) mkdirSync(DATA_DIR, { recursive: true });
 
-const db = new DatabaseSync(DB_PATH);
-const USE_TURSO = Boolean(process.env.TURSO_DATABASE_URL && process.env.TURSO_AUTH_TOKEN);
+const db = new DatabaseSync(SQLITE_PATH);
 db.exec(`
-  PRAGMA journal_mode = WAL;
+  PRAGMA journal_mode = ${IS_VERCEL ? "MEMORY" : "WAL"};
 
   CREATE TABLE IF NOT EXISTS app_settings (
     id INTEGER PRIMARY KEY CHECK (id = 1),
