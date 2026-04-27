@@ -20,6 +20,7 @@ export default async function handler(req, res) {
       req.url = path.slice(0, -1) + query;
     }
   }
+
   return handleRequest(req, res);
 }
 
