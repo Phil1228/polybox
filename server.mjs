@@ -2516,172 +2516,63 @@ async function handleApi(req, res, pathname) {
   return false;
 }
 
-createServer(async (req, res) => {
+export async function handleRequest(req, res) {
   try {
     const url = new URL(req.url || "/", `http://${HOST}:${PORT}`);
     const pathname = url.pathname;
 
     if (await handleApi(req, res, pathname)) return;
 
-    if (pathname === "/") {
-      sendFile(res, "pages/polybox/index.html");
-      return;
-    }
-    if (pathname === "/polybox.html") {
-      sendFile(res, "pages/polybox/index.html");
-      return;
-    }
-    if (pathname === "/minimaths.html") {
-      sendFile(res, "games/minimaths/index.html");
-      return;
-    }
-    if (pathname === "/square-cube.html") {
-      sendFile(res, "games/square-cube/index.html");
-      return;
-    }
-    if (pathname === "/mini-eng.html") {
-      sendFile(res, "games/mini-eng/index.html");
-      return;
-    }
-    if (pathname === "/xiaoguwen.html") {
-      sendFile(res, "games/xiaoguwen/index.html");
-      return;
-    }
-    if (pathname === "/novel.html") {
-      sendFile(res, "games/novel/index.html");
-      return;
-    }
-    if (pathname === "/processing-speed.html") {
-      sendFile(res, "games/processing-speed/index.html");
-      return;
-    }
-    if (pathname === "/dungeon.html") {
-      sendFile(res, "games/dungeon/index.html");
-      return;
-    }
-    if (pathname === "/dungeon-play.html") {
-      sendFile(res, "games/dungeon/play.html");
-      return;
-    }
-    if (pathname === "/dungeon-build.html") {
-      sendFile(res, "games/dungeon/build.html");
-      return;
-    }
-    if (pathname === "/dungeon-hunt.html") {
-      sendFile(res, "games/dungeon/hunt.html");
-      return;
-    }
-    if (pathname === "/recharge.html") {
-      sendFile(res, "pages/recharge/index.html");
-      return;
-    }
-    if (pathname === "/user.html") {
-      sendFile(res, "pages/user/index.html");
-      return;
-    }
-    if (pathname === "/app.js") {
-      sendFile(res, "games/minimaths/app.js");
-      return;
-    }
-    if (pathname === "/square-cube.js") {
-      sendFile(res, "games/square-cube/app.js");
-      return;
-    }
-    if (pathname === "/mini-eng.js") {
-      sendFile(res, "games/mini-eng/mini-eng.js");
-      return;
-    }
-    if (pathname === "/novel.js") {
-      sendFile(res, "games/novel/novel.js");
-      return;
-    }
-    if (pathname === "/processing-speed.js") {
-      sendFile(res, "games/processing-speed/processing-speed.js");
-      return;
-    }
-    if (pathname === "/dungeon.js") {
-      sendFile(res, "games/dungeon/dungeon.js");
-      return;
-    }
-    if (pathname === "/recharge.js") {
-      sendFile(res, "pages/recharge/recharge.js");
-      return;
-    }
-    if (pathname === "/user.js") {
-      sendFile(res, "pages/user/user.js");
-      return;
-    }
-    if (pathname === "/nav-loader.js") {
-      sendFile(res, "shared/nav-loader.js");
-      return;
-    }
-    if (pathname === "/theme.css") {
-      sendFile(res, "shared/theme.css");
-      return;
-    }
-    if (pathname === "/theme.js") {
-      sendFile(res, "shared/theme.js");
-      return;
-    }
-    if (pathname === "/xiaoguwen.js") {
-      sendFile(res, "games/xiaoguwen/xiaoguwen.js");
-      return;
-    }
-    if (pathname === "/minimaths-icon.svg") {
-      sendFile(res, "games/minimaths/assets/minimaths-icon.svg");
-      return;
-    }
-    if (pathname === "/novel-icon.svg") {
-      sendFile(res, "games/novel/assets/novel-icon.svg");
-      return;
-    }
-    if (pathname === "/novel-icon-192.png") {
-      sendFile(res, "novel-icon-192.png");
-      return;
-    }
-    if (pathname === "/novel-icon-512.png") {
-      sendFile(res, "novel-icon-512.png");
-      return;
-    }
-    if (pathname === "/novel-apple-touch-icon.png") {
-      sendFile(res, "novel-apple-touch-icon.png");
-      return;
-    }
-    if (pathname === "/icon-192.png") {
-      sendFile(res, "icon-192.png");
-      return;
-    }
-    if (pathname === "/icon-512.png") {
-      sendFile(res, "icon-512.png");
-      return;
-    }
-    if (pathname === "/apple-touch-icon.png") {
-      sendFile(res, "apple-touch-icon.png");
-      return;
-    }
-    if (pathname === "/site.webmanifest") {
-      sendFile(res, "games/minimaths/assets/site.webmanifest");
-      return;
-    }
-    if (pathname === "/novel.webmanifest") {
-      sendFile(res, "games/novel/assets/novel.webmanifest");
-      return;
-    }
-    if (pathname === "/upload/app-release.apk") {
-      sendFile(res, "upload/app-release.apk");
-      return;
-    }
-    if (pathname === "/favicon.ico") {
-      sendFile(res, "favicon.ico");
-      return;
-    }
+    if (pathname === "/") return void sendFile(res, "pages/polybox/index.html");
+    if (pathname === "/polybox.html") return void sendFile(res, "pages/polybox/index.html");
+    if (pathname === "/minimaths.html") return void sendFile(res, "games/minimaths/index.html");
+    if (pathname === "/square-cube.html") return void sendFile(res, "games/square-cube/index.html");
+    if (pathname === "/mini-eng.html") return void sendFile(res, "games/mini-eng/index.html");
+    if (pathname === "/xiaoguwen.html") return void sendFile(res, "games/xiaoguwen/index.html");
+    if (pathname === "/novel.html") return void sendFile(res, "games/novel/index.html");
+    if (pathname === "/processing-speed.html") return void sendFile(res, "games/processing-speed/index.html");
+    if (pathname === "/dungeon.html") return void sendFile(res, "games/dungeon/index.html");
+    if (pathname === "/dungeon-play.html") return void sendFile(res, "games/dungeon/play.html");
+    if (pathname === "/dungeon-build.html") return void sendFile(res, "games/dungeon/build.html");
+    if (pathname === "/dungeon-hunt.html") return void sendFile(res, "games/dungeon/hunt.html");
+    if (pathname === "/recharge.html") return void sendFile(res, "pages/recharge/index.html");
+    if (pathname === "/user.html") return void sendFile(res, "pages/user/index.html");
+
+    if (pathname === "/app.js") return void sendFile(res, "games/minimaths/app.js");
+    if (pathname === "/square-cube.js") return void sendFile(res, "games/square-cube/app.js");
+    if (pathname === "/mini-eng.js") return void sendFile(res, "games/mini-eng/mini-eng.js");
+    if (pathname === "/novel.js") return void sendFile(res, "games/novel/novel.js");
+    if (pathname === "/processing-speed.js") return void sendFile(res, "games/processing-speed/processing-speed.js");
+    if (pathname === "/dungeon.js") return void sendFile(res, "games/dungeon/dungeon.js");
+    if (pathname === "/recharge.js") return void sendFile(res, "pages/recharge/recharge.js");
+    if (pathname === "/user.js") return void sendFile(res, "pages/user/user.js");
+    if (pathname === "/nav-loader.js") return void sendFile(res, "shared/nav-loader.js");
+    if (pathname === "/theme.css") return void sendFile(res, "shared/theme.css");
+    if (pathname === "/theme.js") return void sendFile(res, "shared/theme.js");
+    if (pathname === "/xiaoguwen.js") return void sendFile(res, "games/xiaoguwen/xiaoguwen.js");
+
+    if (pathname === "/minimaths-icon.svg") return void sendFile(res, "games/minimaths/assets/minimaths-icon.svg");
+    if (pathname === "/novel-icon.svg") return void sendFile(res, "games/novel/assets/novel-icon.svg");
+    if (pathname === "/novel-icon-192.png") return void sendFile(res, "novel-icon-192.png");
+    if (pathname === "/novel-icon-512.png") return void sendFile(res, "novel-icon-512.png");
+    if (pathname === "/novel-apple-touch-icon.png") return void sendFile(res, "novel-apple-touch-icon.png");
+    if (pathname === "/icon-192.png") return void sendFile(res, "icon-192.png");
+    if (pathname === "/icon-512.png") return void sendFile(res, "icon-512.png");
+    if (pathname === "/apple-touch-icon.png") return void sendFile(res, "apple-touch-icon.png");
+    if (pathname === "/site.webmanifest") return void sendFile(res, "games/minimaths/assets/site.webmanifest");
+    if (pathname === "/novel.webmanifest") return void sendFile(res, "games/novel/assets/novel.webmanifest");
+    if (pathname === "/upload/app-release.apk") return void sendFile(res, "upload/app-release.apk");
+    if (pathname === "/favicon.ico") return void sendFile(res, "favicon.ico");
 
     notFound(res);
   } catch (error) {
     json(res, 500, { error: error instanceof Error ? error.message : "Internal error" });
   }
-}).listen(PORT, HOST, () => {
-  console.log(`MiniMaths running: http://${HOST}:${PORT}`);
-  console.log(`SQLite file: ${join("data", "minimaths.db")}`);
-  console.log("[pdf] Startup PDF_CJK_FONT_PATH =", JSON.stringify(process.env.PDF_CJK_FONT_PATH || ""));
-});
+}
+
+if (!process.env.VERCEL) {
+  createServer(handleRequest).listen(PORT, HOST, () => {
+    console.log(`MiniMaths running: http://${HOST}:${PORT}`);
+    console.log("[pdf] Startup PDF_CJK_FONT_PATH =", JSON.stringify(process.env.PDF_CJK_FONT_PATH || ""));
+  });
+}
