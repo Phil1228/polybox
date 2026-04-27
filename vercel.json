@@ -2,16 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
     "api/index.js": {
-      "includeFiles": [
-        "pages/**",
-        "games/**",
-        "shared/**",
-        "favicon.ico",
-        "upload/**",
-        "*.png",
-        "*.svg",
-        "*.webmanifest"
-      ]
+      "includeFiles": "**/*"
     }
   },
   "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }]
