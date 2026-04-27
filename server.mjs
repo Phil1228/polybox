@@ -2576,3 +2576,9 @@ if (!process.env.VERCEL) {
     console.log("[pdf] Startup PDF_CJK_FONT_PATH =", JSON.stringify(process.env.PDF_CJK_FONT_PATH || ""));
   });
 }
+
+// Some Vercel runtimes validate the default export of the module they execute.
+// Exporting the request handler as default keeps compatibility.
+export default function handler(req, res) {
+  return handleRequest(req, res);
+}
