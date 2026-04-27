@@ -1,7 +1,19 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "version": 2,
-  "builds": [{ "src": "api/index.js", "use": "@vercel/node" }],
-  "routes": [{ "src": "/(.*)", "dest": "api/index.js" }]
+  "functions": {
+    "api/index.js": {
+      "includeFiles": [
+        "pages/**",
+        "games/**",
+        "shared/**",
+        "favicon.ico",
+        "upload/**",
+        "*.png",
+        "*.svg",
+        "*.webmanifest"
+      ]
+    }
+  },
+  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }]
 }
 
