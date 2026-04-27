@@ -4,11 +4,13 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@libsql/client": "^0.15.14",
     "pdfkit": "^0.17.2",
     "stripe": "^20.4.0"
   },
   "scripts": {
     "start": "node server.mjs",
+    "dev": "node --env-file=.env.local server.mjs",
     "reset-password": "node scripts/reset-user-password.mjs"
   }
 }

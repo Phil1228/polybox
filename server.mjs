@@ -5,6 +5,7 @@ import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import PDFDocument from "pdfkit";
 import Stripe from "stripe";
+import { getTursoClient } from "./shared/turso-client.mjs";
 
 const HOST = "0.0.0.0";
 const PORT = 3000;
@@ -15,6 +16,7 @@ const DB_PATH = resolve(DATA_DIR, "minimaths.db");
 mkdirSync(DATA_DIR, { recursive: true });
 
 const db = new DatabaseSync(DB_PATH);
+const USE_TURSO = Boolean(process.env.TURSO_DATABASE_URL && process.env.TURSO_AUTH_TOKEN);
 db.exec(`
   PRAGMA journal_mode = WAL;
 
@@ -792,6 +794,123 @@ function getSquareCubeLeaderboard() {
   return ["square", "cube", "mixed"].map((type) => grouped.get(type));
 }
 
+async function tursoAll(sql, args = []) {
+  const client = getTursoClient();
+  const result = await client.execute({ sql, args });
+  return Array.isArray(result.rows) ? result.rows : [];
+}
+
+let tursoSquareCubeSchemaReady = false;
+async function ensureSquareCubeSchemaTurso() {
+  if (tursoSquareCubeSchemaReady) return;
+  const client = getTursoClient();
+  await client.batch(
+    [
+      {
+        sql: `
+          CREATE TABLE IF NOT EXISTS square_cube_history_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            equation TEXT NOT NULL,
+            time_text TEXT NOT NULL,
+            time_ms INTEGER NOT NULL,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+          )
+        `,
+        args: [],
+      },
+      {
+        sql: `
+          CREATE TABLE IF NOT EXISTS square_cube_leaderboard_entries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            practice_type TEXT NOT NULL DEFAULT 'square',
+            total_ms INTEGER NOT NULL,
+            total_time_text TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+          )
+        `,
+        args: [],
+      },
+      {
+        sql: `
+          CREATE TABLE IF NOT EXISTS square_cube_leaderboard_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            entry_id INTEGER NOT NULL,
+            item_order INTEGER NOT NULL,
+            equation TEXT NOT NULL,
+            time_text TEXT NOT NULL,
+            time_ms INTEGER NOT NULL,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(entry_id) REFERENCES square_cube_leaderboard_entries(id) ON DELETE CASCADE
+          )
+        `,
+        args: [],
+      },
+    ],
+    "write",
+  );
+  tursoSquareCubeSchemaReady = true;
+}
+
+async function getSquareCubeHistoryTurso(limit) {
+  await ensureSquareCubeSchemaTurso();
+  const rows = await tursoAll(
+    `
+    SELECT
+      equation,
+      time_text AS time,
+      time_ms AS timeMs
+    FROM square_cube_history_records
+    ORDER BY id DESC
+    LIMIT ?
+  `,
+    [limit],
+  );
+  return rows.map((r) => ({ equation: String(r.equation || ""), time: String(r.time || "0s"), timeMs: Number(r.timeMs) || 0 }));
+}
+
+async function getSquareCubeLeaderboardTurso() {
+  await ensureSquareCubeSchemaTurso();
+  const rows = await tursoAll(
+    `
+    SELECT * FROM (
+      SELECT
+        id,
+        username,
+        practice_type AS type,
+        total_ms AS totalMs,
+        total_time_text AS totalTimeText,
+        ROW_NUMBER() OVER (
+          PARTITION BY practice_type
+          ORDER BY total_ms ASC, id ASC
+        ) AS rankInType
+      FROM square_cube_leaderboard_entries
+    )
+    WHERE rankInType <= 20
+    ORDER BY type ASC, rankInType ASC, id ASC
+  `,
+    [],
+  );
+  const labels = { square: "平方", cube: "立方", mixed: "混合" };
+  const grouped = new Map();
+  for (const row of rows) {
+    const type = row.type === "cube" || row.type === "mixed" ? row.type : "square";
+    if (!grouped.has(type)) grouped.set(type, { type, typeLabel: labels[type], items: [] });
+    grouped.get(type).items.push({
+      id: Number(row.id),
+      username: String(row.username || "匿名"),
+      totalMs: Number(row.totalMs) || 0,
+      totalTimeText: String(row.totalTimeText || "0s"),
+      rank: Number(row.rankInType) || 0,
+      type,
+    });
+  }
+  for (const type of ["square", "cube", "mixed"]) {
+    if (!grouped.has(type)) grouped.set(type, { type, typeLabel: labels[type], items: [] });
+  }
+  return ["square", "cube", "mixed"].map((type) => grouped.get(type));
+}
+
 function json(res, status, payload) {
   const body = JSON.stringify(payload);
   res.writeHead(status, {
@@ -969,6 +1088,8 @@ function sendFile(res, filePath) {
               ? "image/png"
               : ext === ".apk"
                 ? "application/vnd.android.package-archive"
+              : ext === ".ico"
+                ? "image/x-icon"
               : ext === ".webmanifest"
                 ? "application/manifest+json; charset=utf-8"
                 : "text/plain; charset=utf-8";
@@ -1875,10 +1996,16 @@ async function handleApi(req, res, pathname) {
   }
 
   if (req.method === "GET" && pathname === "/api/square-cube/bootstrap") {
-    json(res, 200, {
-      history: getSquareCubeHistory(10),
-      groups: getSquareCubeLeaderboard(),
-    });
+    if (USE_TURSO) {
+      try {
+        const [history, groups] = await Promise.all([getSquareCubeHistoryTurso(10), getSquareCubeLeaderboardTurso()]);
+        json(res, 200, { history, groups });
+      } catch {
+        json(res, 200, { history: [], groups: await getSquareCubeLeaderboardTurso().catch(() => []) });
+      }
+      return true;
+    }
+    json(res, 200, { history: getSquareCubeHistory(10), groups: getSquareCubeLeaderboard() });
     return true;
   }
 
@@ -1892,6 +2019,23 @@ async function handleApi(req, res, pathname) {
       badRequest(res, "Invalid square cube history payload");
       return true;
     }
+    if (USE_TURSO) {
+      try {
+        await ensureSquareCubeSchemaTurso();
+        if (!skipInsert) {
+          const client = getTursoClient();
+          await client.execute({
+            sql: `INSERT INTO square_cube_history_records (equation, time_text, time_ms) VALUES (?, ?, ?)`,
+            args: [body.equation, body.time, Number(body.timeMs) || 0],
+          });
+        }
+        const history = await getSquareCubeHistoryTurso(normalizedLimit);
+        json(res, 200, { history });
+      } catch {
+        json(res, 200, { history: [] });
+      }
+      return true;
+    }
     if (!skipInsert) {
       insertSquareCubeHistoryStmt.run(body.equation, body.time, Number(body.timeMs) || 0);
     }
@@ -1900,6 +2044,14 @@ async function handleApi(req, res, pathname) {
   }
 
   if (req.method === "GET" && pathname === "/api/square-cube/leaderboard") {
+    if (USE_TURSO) {
+      try {
+        json(res, 200, { groups: await getSquareCubeLeaderboardTurso() });
+      } catch {
+        json(res, 200, { groups: [] });
+      }
+      return true;
+    }
     json(res, 200, { groups: getSquareCubeLeaderboard() });
     return true;
   }
@@ -1907,6 +2059,31 @@ async function handleApi(req, res, pathname) {
   const squareCubeDetailMatch = pathname.match(/^\/api\/square-cube\/leaderboard\/(\d+)\/items$/);
   if (req.method === "GET" && squareCubeDetailMatch) {
     const entryId = Number(squareCubeDetailMatch[1]);
+    if (USE_TURSO) {
+      try {
+        const rows = await tursoAll(
+          `
+          SELECT
+            equation,
+            time_text AS time,
+            time_ms AS timeMs
+          FROM square_cube_leaderboard_items
+          WHERE entry_id = ?
+          ORDER BY item_order ASC, id ASC
+        `,
+          [entryId],
+        );
+        const items = rows.map((r) => ({
+          equation: String(r.equation || ""),
+          time: String(r.time || "0s"),
+          timeMs: Number(r.timeMs) || 0,
+        }));
+        json(res, 200, { items });
+      } catch {
+        json(res, 200, { items: [] });
+      }
+      return true;
+    }
     json(res, 200, { items: readSquareCubeLeaderboardItemsStmt.all(entryId) });
     return true;
   }
@@ -1918,6 +2095,41 @@ async function handleApi(req, res, pathname) {
     const totalMs = Number(body.totalMs) || 0;
     const totalTimeText = typeof body.totalTimeText === "string" ? body.totalTimeText : "0s";
     const items = Array.isArray(body.items) ? body.items : [];
+
+    if (USE_TURSO) {
+      try {
+        await ensureSquareCubeSchemaTurso();
+        const client = getTursoClient();
+        const entryResult = await client.execute({
+          sql: `
+            INSERT INTO square_cube_leaderboard_entries (username, practice_type, total_ms, total_time_text)
+            VALUES (?, ?, ?, ?)
+          `,
+          args: [username, type, totalMs, totalTimeText],
+        });
+        const entryId = Number(entryResult.lastInsertRowid);
+        const statements = items.map((item, index) => ({
+          sql: `
+            INSERT INTO square_cube_leaderboard_items (entry_id, item_order, equation, time_text, time_ms)
+            VALUES (?, ?, ?, ?, ?)
+          `,
+          args: [
+            entryId,
+            index,
+            String(item.equation || ""),
+            String(item.time || "0s"),
+            Number(item.timeMs) || 0,
+          ],
+        }));
+        if (statements.length) {
+          await client.batch(statements, "write");
+        }
+        json(res, 200, { ok: true, groups: await getSquareCubeLeaderboardTurso() });
+      } catch (error) {
+        json(res, 500, { error: error instanceof Error ? error.message : "square-cube round write failed" });
+      }
+      return true;
+    }
 
     db.exec("BEGIN");
     try {
@@ -2449,8 +2661,7 @@ createServer(async (req, res) => {
       return;
     }
     if (pathname === "/favicon.ico") {
-      res.writeHead(204);
-      res.end();
+      sendFile(res, "favicon.ico");
       return;
     }
 

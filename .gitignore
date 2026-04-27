@@ -1,0 +1,13 @@
+.env.local  
+node_modules
+.DS_Store
+.cursor
+.vscode
+.env
+.env.local
+.env.local.example
+.env.local.example.txt
+.env.local.example.txt.example
+.env.local.example.txt.example.txt
+.env.local.example.txt.example.txt.example
+.env.local.example.txt.example.txt.example.txt
