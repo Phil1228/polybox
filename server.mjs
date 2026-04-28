@@ -28,8 +28,7 @@ const SQLITE_PATH = IS_VERCEL ? ":memory:" : DB_PATH;
 if (!IS_VERCEL) mkdirSync(DATA_DIR, { recursive: true });
 
 const db = new DatabaseSync(SQLITE_PATH);
-db.exec(`
-  PRAGMA journal_mode = ${IS_VERCEL ? "MEMORY" : "WAL"};
+const SCHEMA_SQL = `
 
   CREATE TABLE IF NOT EXISTS app_settings (
     id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -188,65 +187,118 @@ db.exec(`
     UNIQUE(map_uuid, player_user_id),
     FOREIGN KEY(player_user_id) REFERENCES users(id) ON DELETE CASCADE
   );
-`);
+`;
+
+db.exec(`PRAGMA journal_mode = ${IS_VERCEL ? "MEMORY" : "WAL"};`);
+db.exec(SCHEMA_SQL);
+
+let _tursoSchemaReady = false;
+async function ensureTursoSchema() {
+  if (!IS_VERCEL) return;
+  if (_tursoSchemaReady) return;
+  if (!USE_TURSO) return;
+
+  const client = getTursoClient();
+  // Split on ';' to execute statements one-by-one for Turso.
+  const parts = SCHEMA_SQL.split(";")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  for (const stmt of parts) {
+    // Turso doesn't support PRAGMA in the same way; schema SQL is DDL/DML only.
+    await client.execute(stmt);
+  }
+  _tursoSchemaReady = true;
+}
+
+function prepare(sql) {
+  if (IS_VERCEL) {
+    return {
+      async all(...args) {
+        await ensureTursoSchema();
+        const client = getTursoClient();
+        const r = await client.execute({ sql, args });
+        return r.rows || [];
+      },
+      async get(...args) {
+        const rows = await this.all(...args);
+        return rows[0] || undefined;
+      },
+      async run(...args) {
+        await ensureTursoSchema();
+        const client = getTursoClient();
+        const r = await client.execute({ sql, args });
+        return {
+          changes: Number(r.rowsAffected || 0),
+          lastInsertRowid: r.lastInsertRowid ?? undefined,
+        };
+      },
+    };
+  }
+  return db.prepare(sql);
+}
 
 const DEFAULT_NOVEL_ROOT_CONTENT =
   "这是一个众创故事，每个人都可以改变故事的走向，也可以随时开始创作。请从这里接力，让故事继续发生。";
 const LEGACY_NOVEL_ROOT_CONTENT =
   "夜雨初停，街灯在水洼里晃动。我把伞收好，推开那扇旧书店的门，风铃轻轻响了一声。";
 
-const readRootNovelStmt = db.prepare(`
+const readRootNovelStmt = prepare(`
   SELECT id, content, author
   FROM novel_contents
   WHERE seq = 1 AND parent_id IS NULL
   ORDER BY id ASC
   LIMIT 1
 `);
-const insertRootNovelStmt = db.prepare(`
+const insertRootNovelStmt = prepare(`
   INSERT INTO novel_contents (seq, parent_id, content, votes, author)
   VALUES (?, ?, ?, ?, ?)
 `);
-const updateRootNovelContentStmt = db.prepare(`
+const updateRootNovelContentStmt = prepare(`
   UPDATE novel_contents
   SET content = ?
   WHERE id = ?
 `);
 
-const rootNovel = readRootNovelStmt.get();
-if (!rootNovel) {
-  insertRootNovelStmt.run(1, null, DEFAULT_NOVEL_ROOT_CONTENT, 0, "系统");
-} else if (rootNovel.author === "系统" && rootNovel.content === LEGACY_NOVEL_ROOT_CONTENT) {
-  updateRootNovelContentStmt.run(DEFAULT_NOVEL_ROOT_CONTENT, rootNovel.id);
+// Local-only SQLite migrations / seed data.
+// On Vercel we use Turso and avoid mutating the ephemeral in-memory SQLite.
+if (!IS_VERCEL) {
+  const rootNovel = await readRootNovelStmt.get();
+  if (!rootNovel) {
+    await insertRootNovelStmt.run(1, null, DEFAULT_NOVEL_ROOT_CONTENT, 0, "系统");
+  } else if (rootNovel.author === "系统" && rootNovel.content === LEGACY_NOVEL_ROOT_CONTENT) {
+    await updateRootNovelContentStmt.run(DEFAULT_NOVEL_ROOT_CONTENT, rootNovel.id);
+  }
+
+  function hasColumn(tableName, columnName) {
+    const rows = db.prepare(`PRAGMA table_info(${tableName})`).all();
+    return rows.some((row) => row.name === columnName);
+  }
+
+  if (!hasColumn("leaderboard_entries", "config_key")) {
+    db.exec("ALTER TABLE leaderboard_entries ADD COLUMN config_key TEXT NOT NULL DEFAULT '未知-2-2-10'");
+  }
+  if (!hasColumn("leaderboard_entries", "config_label")) {
+    db.exec("ALTER TABLE leaderboard_entries ADD COLUMN config_label TEXT NOT NULL DEFAULT '未知-2-2-10'");
+  }
+
+  if (!hasColumn("novel_contents", "parent_id")) {
+    db.exec("ALTER TABLE novel_contents ADD COLUMN parent_id INTEGER");
+  }
+  if (!hasColumn("processing_speed_entries", "level")) {
+    db.exec("ALTER TABLE processing_speed_entries ADD COLUMN level TEXT NOT NULL DEFAULT 'beginner'");
+  }
+  if (!hasColumn("users", "nickname")) {
+    db.exec("ALTER TABLE users ADD COLUMN nickname TEXT NOT NULL DEFAULT ''");
+  }
+  if (!hasColumn("users", "avatar")) {
+    db.exec("ALTER TABLE users ADD COLUMN avatar TEXT NOT NULL DEFAULT ''");
+  }
+  if (!hasColumn("dungeon_maps", "mask_colors_json")) {
+    db.exec("ALTER TABLE dungeon_maps ADD COLUMN mask_colors_json TEXT NOT NULL DEFAULT '[]'");
+  }
 }
 
-function hasColumn(tableName, columnName) {
-  const rows = db.prepare(`PRAGMA table_info(${tableName})`).all();
-  return rows.some((row) => row.name === columnName);
-}
-
-if (!hasColumn("leaderboard_entries", "config_key")) {
-  db.exec("ALTER TABLE leaderboard_entries ADD COLUMN config_key TEXT NOT NULL DEFAULT '未知-2-2-10'");
-}
-if (!hasColumn("leaderboard_entries", "config_label")) {
-  db.exec("ALTER TABLE leaderboard_entries ADD COLUMN config_label TEXT NOT NULL DEFAULT '未知-2-2-10'");
-}
-if (!hasColumn("novel_contents", "parent_id")) {
-  db.exec("ALTER TABLE novel_contents ADD COLUMN parent_id INTEGER");
-}
-if (!hasColumn("processing_speed_entries", "level")) {
-  db.exec("ALTER TABLE processing_speed_entries ADD COLUMN level TEXT NOT NULL DEFAULT 'beginner'");
-}
-if (!hasColumn("users", "nickname")) {
-  db.exec("ALTER TABLE users ADD COLUMN nickname TEXT NOT NULL DEFAULT ''");
-}
-if (!hasColumn("users", "avatar")) {
-  db.exec("ALTER TABLE users ADD COLUMN avatar TEXT NOT NULL DEFAULT ''");
-}
-if (!hasColumn("dungeon_maps", "mask_colors_json")) {
-  db.exec("ALTER TABLE dungeon_maps ADD COLUMN mask_colors_json TEXT NOT NULL DEFAULT '[]'");
-}
-
-const getSettingsStmt = db.prepare(`
+const getSettingsStmt = prepare(`
   SELECT
     username,
     problem_type AS problemType,
@@ -257,7 +309,7 @@ const getSettingsStmt = db.prepare(`
   WHERE id = 1
 `);
 
-const updateSettingsStmt = db.prepare(`
+const updateSettingsStmt = prepare(`
   UPDATE app_settings
   SET
     username = ?,
@@ -269,12 +321,12 @@ const updateSettingsStmt = db.prepare(`
   WHERE id = 1
 `);
 
-const insertHistoryStmt = db.prepare(`
+const insertHistoryStmt = prepare(`
   INSERT INTO history_records (equation, time_text, time_ms)
   VALUES (?, ?, ?)
 `);
 
-const readHistoryStmt = db.prepare(`
+const readHistoryStmt = prepare(`
   SELECT
     equation,
     time_text AS time,
@@ -284,7 +336,7 @@ const readHistoryStmt = db.prepare(`
   LIMIT ?
 `);
 
-const readLeaderboardStmt = db.prepare(`
+const readLeaderboardStmt = prepare(`
   SELECT * FROM (
     SELECT
       id,
@@ -303,17 +355,17 @@ const readLeaderboardStmt = db.prepare(`
   ORDER BY configKey ASC, rankInConfig ASC, id ASC
 `);
 
-const insertLeaderboardStmt = db.prepare(`
+const insertLeaderboardStmt = prepare(`
   INSERT INTO leaderboard_entries (username, total_ms, total_time_text, config_key, config_label)
   VALUES (?, ?, ?, ?, ?)
 `);
 
-const insertLeaderboardItemStmt = db.prepare(`
+const insertLeaderboardItemStmt = prepare(`
   INSERT INTO leaderboard_items (entry_id, item_order, equation, time_text, time_ms)
   VALUES (?, ?, ?, ?, ?)
 `);
 
-const readLeaderboardItemsStmt = db.prepare(`
+const readLeaderboardItemsStmt = prepare(`
   SELECT
     equation,
     time_text AS time,
@@ -323,12 +375,12 @@ const readLeaderboardItemsStmt = db.prepare(`
   ORDER BY item_order ASC, id ASC
 `);
 
-const insertSquareCubeHistoryStmt = db.prepare(`
+const insertSquareCubeHistoryStmt = prepare(`
   INSERT INTO square_cube_history_records (equation, time_text, time_ms)
   VALUES (?, ?, ?)
 `);
 
-const readSquareCubeHistoryStmt = db.prepare(`
+const readSquareCubeHistoryStmt = prepare(`
   SELECT
     equation,
     time_text AS time,
@@ -338,7 +390,7 @@ const readSquareCubeHistoryStmt = db.prepare(`
   LIMIT ?
 `);
 
-const readSquareCubeLeaderboardStmt = db.prepare(`
+const readSquareCubeLeaderboardStmt = prepare(`
   SELECT * FROM (
     SELECT
       id,
@@ -356,17 +408,17 @@ const readSquareCubeLeaderboardStmt = db.prepare(`
   ORDER BY type ASC, rankInType ASC, id ASC
 `);
 
-const insertSquareCubeLeaderboardStmt = db.prepare(`
+const insertSquareCubeLeaderboardStmt = prepare(`
   INSERT INTO square_cube_leaderboard_entries (username, practice_type, total_ms, total_time_text)
   VALUES (?, ?, ?, ?)
 `);
 
-const insertSquareCubeLeaderboardItemStmt = db.prepare(`
+const insertSquareCubeLeaderboardItemStmt = prepare(`
   INSERT INTO square_cube_leaderboard_items (entry_id, item_order, equation, time_text, time_ms)
   VALUES (?, ?, ?, ?, ?)
 `);
 
-const readSquareCubeLeaderboardItemsStmt = db.prepare(`
+const readSquareCubeLeaderboardItemsStmt = prepare(`
   SELECT
     equation,
     time_text AS time,
@@ -376,7 +428,7 @@ const readSquareCubeLeaderboardItemsStmt = db.prepare(`
   ORDER BY item_order ASC, id ASC
 `);
 
-const readProcessingSpeedLeaderboardStmt = db.prepare(`
+const readProcessingSpeedLeaderboardStmt = prepare(`
   SELECT
     id,
     username,
@@ -390,17 +442,17 @@ const readProcessingSpeedLeaderboardStmt = db.prepare(`
   LIMIT 10
 `);
 
-const insertProcessingSpeedEntryStmt = db.prepare(`
+const insertProcessingSpeedEntryStmt = prepare(`
   INSERT INTO processing_speed_entries (username, level, total_ms, total_time_text)
   VALUES (?, ?, ?, ?)
 `);
 
-const insertProcessingSpeedItemStmt = db.prepare(`
+const insertProcessingSpeedItemStmt = prepare(`
   INSERT INTO processing_speed_items (entry_id, item_order, target_text, time_ms, time_text)
   VALUES (?, ?, ?, ?, ?)
 `);
 
-const readNovelTopBySeqStmt = db.prepare(`
+const readNovelTopBySeqStmt = prepare(`
   SELECT
     id,
     seq,
@@ -415,7 +467,7 @@ const readNovelTopBySeqStmt = db.prepare(`
   LIMIT 1
 `);
 
-const readNovelListBySeqStmt = db.prepare(`
+const readNovelListBySeqStmt = prepare(`
   SELECT
     id,
     seq,
@@ -429,18 +481,18 @@ const readNovelListBySeqStmt = db.prepare(`
   ORDER BY votes DESC, id ASC
 `);
 
-const insertNovelStmt = db.prepare(`
+const insertNovelStmt = prepare(`
   INSERT INTO novel_contents (seq, parent_id, content, votes, author)
   VALUES (?, ?, ?, 0, ?)
 `);
 
-const updateNovelVoteStmt = db.prepare(`
+const updateNovelVoteStmt = prepare(`
   UPDATE novel_contents
   SET votes = votes + 1
   WHERE id = ?
 `);
 
-const readNovelByIdStmt = db.prepare(`
+const readNovelByIdStmt = prepare(`
   SELECT
     id,
     seq,
@@ -453,7 +505,7 @@ const readNovelByIdStmt = db.prepare(`
   WHERE id = ?
 `);
 
-const readNovelChildrenTopStmt = db.prepare(`
+const readNovelChildrenTopStmt = prepare(`
   SELECT
     id,
     seq,
@@ -468,7 +520,7 @@ const readNovelChildrenTopStmt = db.prepare(`
   LIMIT 1
 `);
 
-const readNovelChildrenListStmt = db.prepare(`
+const readNovelChildrenListStmt = prepare(`
   SELECT
     id,
     seq,
@@ -482,7 +534,7 @@ const readNovelChildrenListStmt = db.prepare(`
   ORDER BY votes DESC, id ASC
 `);
 
-const readNovelChildrenPagedStmt = db.prepare(`
+const readNovelChildrenPagedStmt = prepare(`
   SELECT
     id,
     seq,
@@ -498,7 +550,7 @@ const readNovelChildrenPagedStmt = db.prepare(`
   OFFSET ?
 `);
 
-const readNovelIntegratedStmt = db.prepare(`
+const readNovelIntegratedStmt = prepare(`
   WITH RECURSIVE chain(
     id, seq, parent_id, content, votes, author, created_at, depth
   ) AS (
@@ -525,7 +577,7 @@ const readNovelIntegratedStmt = db.prepare(`
   ORDER BY depth DESC
 `);
 
-const readNovelRecentLikeStmt = db.prepare(`
+const readNovelRecentLikeStmt = prepare(`
   SELECT liked_at AS likedAt
   FROM novel_like_logs
   WHERE content_id = ?
@@ -534,65 +586,65 @@ const readNovelRecentLikeStmt = db.prepare(`
   LIMIT 1
 `);
 
-const insertNovelLikeLogStmt = db.prepare(`
+const insertNovelLikeLogStmt = prepare(`
   INSERT INTO novel_like_logs (content_id, device_id, ip, liked_at)
   VALUES (?, ?, ?, ?)
 `);
 
-const readUserByUsernameStmt = db.prepare(`
+const readUserByUsernameStmt = prepare(`
   SELECT id, username, password_hash AS passwordHash, nickname, avatar
   FROM users
   WHERE username = ?
   LIMIT 1
 `);
 
-const readUserByIdStmt = db.prepare(`
+const readUserByIdStmt = prepare(`
   SELECT id, username, nickname, avatar
   FROM users
   WHERE id = ?
   LIMIT 1
 `);
 
-const insertUserStmt = db.prepare(`
+const insertUserStmt = prepare(`
   INSERT INTO users (username, password_hash)
   VALUES (?, ?)
 `);
 
-const updateUserPasswordStmt = db.prepare(`
+const updateUserPasswordStmt = prepare(`
   UPDATE users
   SET password_hash = ?, updated_at = CURRENT_TIMESTAMP
   WHERE id = ?
 `);
 
-const updateUserProfileStmt = db.prepare(`
+const updateUserProfileStmt = prepare(`
   UPDATE users
   SET nickname = ?, avatar = ?, updated_at = CURRENT_TIMESTAMP
   WHERE id = ?
 `);
 
-const insertSessionStmt = db.prepare(`
+const insertSessionStmt = prepare(`
   INSERT INTO user_sessions (user_id, token, expires_at)
   VALUES (?, ?, ?)
 `);
 
-const readSessionStmt = db.prepare(`
+const readSessionStmt = prepare(`
   SELECT id, user_id AS userId, expires_at AS expiresAt
   FROM user_sessions
   WHERE token = ?
   LIMIT 1
 `);
 
-const deleteSessionStmt = db.prepare(`
+const deleteSessionStmt = prepare(`
   DELETE FROM user_sessions
   WHERE token = ?
 `);
 
-const deleteExpiredSessionsStmt = db.prepare(`
+const deleteExpiredSessionsStmt = prepare(`
   DELETE FROM user_sessions
   WHERE expires_at <= ?
 `);
 
-const readDungeonMapByUserStmt = db.prepare(`
+const readDungeonMapByUserStmt = prepare(`
   SELECT
     placements_json AS placementsJson,
     mask_colors_json AS maskColorsJson,
@@ -602,7 +654,7 @@ const readDungeonMapByUserStmt = db.prepare(`
   LIMIT 1
 `);
 
-const upsertDungeonMapStmt = db.prepare(`
+const upsertDungeonMapStmt = prepare(`
   INSERT INTO dungeon_maps (user_id, placements_json, mask_colors_json)
   VALUES (?, ?, ?)
   ON CONFLICT(user_id) DO UPDATE SET
@@ -611,12 +663,12 @@ const upsertDungeonMapStmt = db.prepare(`
     updated_at = CURRENT_TIMESTAMP
 `);
 
-const insertPublishedDungeonMapStmt = db.prepare(`
+const insertPublishedDungeonMapStmt = prepare(`
   INSERT INTO published_dungeon_maps (uuid, owner_user_id, placements_json, mask_colors_json)
   VALUES (?, ?, ?, ?)
 `);
 
-const readPublishedDungeonMapByUuidStmt = db.prepare(`
+const readPublishedDungeonMapByUuidStmt = prepare(`
   SELECT
     uuid,
     owner_user_id AS ownerUserId,
@@ -628,7 +680,7 @@ const readPublishedDungeonMapByUuidStmt = db.prepare(`
   LIMIT 1
 `);
 
-const readPublishedDungeonMapsByOwnerStmt = db.prepare(`
+const readPublishedDungeonMapsByOwnerStmt = prepare(`
   SELECT
     p.uuid,
     p.placements_json AS placementsJson,
@@ -643,7 +695,7 @@ const readPublishedDungeonMapsByOwnerStmt = db.prepare(`
   ORDER BY p.id DESC
 `);
 
-const readDungeonHuntRecordStmt = db.prepare(`
+const readDungeonHuntRecordStmt = prepare(`
   SELECT
     map_uuid AS mapUuid,
     player_user_id AS playerUserId,
@@ -655,12 +707,12 @@ const readDungeonHuntRecordStmt = db.prepare(`
   LIMIT 1
 `);
 
-const insertDungeonHuntRecordStmt = db.prepare(`
+const insertDungeonHuntRecordStmt = prepare(`
   INSERT INTO dungeon_hunt_records (map_uuid, player_user_id, score, result)
   VALUES (?, ?, ?, ?)
 `);
 
-const readDungeonHuntHistoryStmt = db.prepare(`
+const readDungeonHuntHistoryStmt = prepare(`
   SELECT
     r.map_uuid AS mapUuid,
     r.score,
@@ -673,7 +725,7 @@ const readDungeonHuntHistoryStmt = db.prepare(`
   ORDER BY r.created_at DESC, r.id DESC
 `);
 
-const readDungeonLeaderboardStmt = db.prepare(`
+const readDungeonLeaderboardStmt = prepare(`
   SELECT
     u.id,
     u.username,
@@ -687,7 +739,7 @@ const readDungeonLeaderboardStmt = db.prepare(`
   LIMIT 100
 `);
 
-const readRandomUnplayedDungeonMapStmt = db.prepare(`
+const readRandomUnplayedDungeonMapStmt = prepare(`
   SELECT
     p.uuid,
     p.owner_user_id AS ownerUserId,
@@ -706,7 +758,7 @@ const readRandomUnplayedDungeonMapStmt = db.prepare(`
   LIMIT 1
 `);
 
-const readMyDungeonHuntHistoryStmt = db.prepare(`
+const readMyDungeonHuntHistoryStmt = prepare(`
   SELECT
     r.map_uuid AS mapUuid,
     r.score,
@@ -737,17 +789,17 @@ function sanitizeSettings(input) {
   return { username, problemType, digitCount, operandCount, questionCount };
 }
 
-function getSettings() {
-  const settings = getSettingsStmt.get();
+async function getSettings() {
+  const settings = await getSettingsStmt.get();
   return sanitizeSettings(settings);
 }
 
-function getHistory(limit) {
-  return readHistoryStmt.all(limit);
+async function getHistory(limit) {
+  return await readHistoryStmt.all(limit);
 }
 
-function getLeaderboard() {
-  const rows = readLeaderboardStmt.all();
+async function getLeaderboard() {
+  const rows = await readLeaderboardStmt.all();
   const grouped = new Map();
 
   for (const row of rows) {
@@ -772,12 +824,12 @@ function getLeaderboard() {
   return Array.from(grouped.values());
 }
 
-function getSquareCubeHistory(limit) {
-  return readSquareCubeHistoryStmt.all(limit);
+async function getSquareCubeHistory(limit) {
+  return await readSquareCubeHistoryStmt.all(limit);
 }
 
-function getSquareCubeLeaderboard() {
-  const rows = readSquareCubeLeaderboardStmt.all();
+async function getSquareCubeLeaderboard() {
+  const rows = await readSquareCubeLeaderboardStmt.all();
   const labels = { square: "平方", cube: "立方", mixed: "混合" };
   const grouped = new Map();
   for (const row of rows) {
@@ -1241,26 +1293,26 @@ function getAuthToken(req, body) {
   return "";
 }
 
-function createSession(userId) {
-  deleteExpiredSessionsStmt.run(new Date().toISOString());
+async function createSession(userId) {
+  await deleteExpiredSessionsStmt.run(new Date().toISOString());
   const token = randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
-  insertSessionStmt.run(userId, token, expiresAt);
+  await insertSessionStmt.run(userId, token, expiresAt);
   return { token, expiresAt };
 }
 
-function getSessionUser(token) {
+async function getSessionUser(token) {
   if (!token) return null;
-  const session = readSessionStmt.get(token);
+  const session = await readSessionStmt.get(token);
   if (!session) return null;
   const expiresAt = new Date(session.expiresAt).getTime();
   if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
-    deleteSessionStmt.run(token);
+    await deleteSessionStmt.run(token);
     return null;
   }
-  const user = readUserByIdStmt.get(session.userId);
+  const user = await readUserByIdStmt.get(session.userId);
   if (!user) {
-    deleteSessionStmt.run(token);
+    await deleteSessionStmt.run(token);
     return null;
   }
   return { user, session };
@@ -1358,10 +1410,10 @@ function randomDungeonUuid() {
   return out;
 }
 
-function createUniqueDungeonUuid() {
+async function createUniqueDungeonUuid() {
   for (let i = 0; i < 200; i += 1) {
     const uuid = randomDungeonUuid();
-    const existing = readPublishedDungeonMapByUuidStmt.get(uuid);
+    const existing = await readPublishedDungeonMapByUuidStmt.get(uuid);
     if (!existing) return uuid;
   }
   throw new Error("Failed to generate unique dungeon uuid");
@@ -1393,13 +1445,13 @@ function parsePublishedDungeonMapRow(row) {
   }
 }
 
-function getPublishedDungeonMap(uuid) {
-  const row = readPublishedDungeonMapByUuidStmt.get(uuid);
+async function getPublishedDungeonMap(uuid) {
+  const row = await readPublishedDungeonMapByUuidStmt.get(uuid);
   return parsePublishedDungeonMapRow(row);
 }
 
-function getMyPublishedDungeonMaps(ownerUserId) {
-  const rows = readPublishedDungeonMapsByOwnerStmt.all(ownerUserId);
+async function getMyPublishedDungeonMaps(ownerUserId) {
+  const rows = await readPublishedDungeonMapsByOwnerStmt.all(ownerUserId);
   return rows
     .map((row) => {
       const parsed = parsePublishedDungeonMapRow({ ...row, ownerUserId });
@@ -1416,8 +1468,8 @@ function getMyPublishedDungeonMaps(ownerUserId) {
     .filter(Boolean);
 }
 
-function getDungeonMapByUser(userId) {
-  const row = readDungeonMapByUserStmt.get(userId);
+async function getDungeonMapByUser(userId) {
+  const row = await readDungeonMapByUserStmt.get(userId);
   if (!row || typeof row.placementsJson !== "string") return null;
   try {
     const parsed = JSON.parse(row.placementsJson);
@@ -1649,9 +1701,9 @@ async function aiMiniEngEvaluation(question, answer, recognitionConfidence, aiCo
 async function handleApi(req, res, pathname) {
   if (req.method === "GET" && pathname === "/api/bootstrap") {
     json(res, 200, {
-      settings: getSettings(),
-      history: getHistory(100),
-      leaderboard: getLeaderboard(),
+      settings: await getSettings(),
+      history: await getHistory(100),
+      leaderboard: await getLeaderboard(),
     });
     return true;
   }
@@ -1670,7 +1722,7 @@ async function handleApi(req, res, pathname) {
       return true;
     }
 
-    const existing = readUserByUsernameStmt.get(username);
+    const existing = await readUserByUsernameStmt.get(username);
     if (existing) {
       json(res, 409, { error: "用户名已被占用" });
       return true;
@@ -1679,7 +1731,7 @@ async function handleApi(req, res, pathname) {
     let userId = 0;
     try {
       const passwordHash = hashPassword(password);
-      const result = insertUserStmt.run(username, passwordHash);
+      const result = await insertUserStmt.run(username, passwordHash);
       userId = Number(result.lastInsertRowid);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -1689,7 +1741,7 @@ async function handleApi(req, res, pathname) {
       }
       throw error;
     }
-    const session = createSession(userId);
+    const session = await createSession(userId);
     json(res, 200, {
       ok: true,
       user: { id: userId, username, nickname: "", avatar: "" },
@@ -1709,13 +1761,13 @@ async function handleApi(req, res, pathname) {
       return true;
     }
 
-    const user = readUserByUsernameStmt.get(username);
+    const user = await readUserByUsernameStmt.get(username);
     if (!user || !verifyPassword(password, user.passwordHash)) {
       json(res, 401, { error: "用户名或密码不正确" });
       return true;
     }
 
-    const session = createSession(user.id);
+    const session = await createSession(user.id);
     json(res, 200, {
       ok: true,
       user: { id: user.id, username: user.username, nickname: user.nickname || "", avatar: user.avatar || "" },
@@ -1732,14 +1784,14 @@ async function handleApi(req, res, pathname) {
       badRequest(res, "Missing token");
       return true;
     }
-    deleteSessionStmt.run(token);
+    await deleteSessionStmt.run(token);
     json(res, 200, { ok: true });
     return true;
   }
 
   if (req.method === "GET" && pathname === "/api/users/me") {
     const token = getAuthToken(req, null);
-    const sessionUser = getSessionUser(token);
+    const sessionUser = await getSessionUser(token);
     if (!sessionUser) {
       json(res, 200, { user: null });
       return true;
@@ -1771,19 +1823,19 @@ async function handleApi(req, res, pathname) {
       return true;
     }
 
-    const sessionUser = getSessionUser(token);
+    const sessionUser = await getSessionUser(token);
     if (!sessionUser) {
       json(res, 401, { error: "未登录或登录已过期" });
       return true;
     }
 
-    const fullUser = readUserByUsernameStmt.get(sessionUser.user.username);
+    const fullUser = await readUserByUsernameStmt.get(sessionUser.user.username);
     if (!fullUser || !verifyPassword(oldPassword, fullUser.passwordHash)) {
       json(res, 401, { error: "原密码不正确" });
       return true;
     }
 
-    updateUserPasswordStmt.run(hashPassword(newPassword), fullUser.id);
+    await updateUserPasswordStmt.run(hashPassword(newPassword), fullUser.id);
     json(res, 200, { ok: true });
     return true;
   }
@@ -1795,33 +1847,33 @@ async function handleApi(req, res, pathname) {
       badRequest(res, "Missing token");
       return true;
     }
-    const sessionUser = getSessionUser(token);
+    const sessionUser = await getSessionUser(token);
     if (!sessionUser) {
       json(res, 401, { error: "未登录或登录已过期" });
       return true;
     }
     const nickname = normalizeNickname(body.nickname);
     const avatar = normalizeAvatar(body.avatar);
-    updateUserProfileStmt.run(nickname, avatar, sessionUser.user.id);
+    await updateUserProfileStmt.run(nickname, avatar, sessionUser.user.id);
     json(res, 200, { ok: true, user: { ...sessionUser.user, nickname, avatar } });
     return true;
   }
 
   if (req.method === "GET" && pathname === "/api/dungeon/map") {
     const token = getAuthToken(req, null);
-    const sessionUser = getSessionUser(token);
+    const sessionUser = await getSessionUser(token);
     if (!sessionUser) {
       json(res, 401, { error: "未登录或登录已过期" });
       return true;
     }
-    json(res, 200, { map: getDungeonMapByUser(sessionUser.user.id) });
+    json(res, 200, { map: await getDungeonMapByUser(sessionUser.user.id) });
     return true;
   }
 
   if (req.method === "POST" && pathname === "/api/dungeon/map") {
     const body = JSON.parse((await readBody(req)) || "{}");
     const token = getAuthToken(req, body);
-    const sessionUser = getSessionUser(token);
+    const sessionUser = await getSessionUser(token);
     if (!sessionUser) {
       json(res, 401, { error: "未登录或登录已过期" });
       return true;
@@ -1838,60 +1890,60 @@ async function handleApi(req, res, pathname) {
       return true;
     }
 
-    upsertDungeonMapStmt.run(
+    await upsertDungeonMapStmt.run(
       sessionUser.user.id,
       JSON.stringify(normalized.placements),
       JSON.stringify(normalizedMask.maskColors),
     );
-    json(res, 200, { ok: true, map: getDungeonMapByUser(sessionUser.user.id) });
+    json(res, 200, { ok: true, map: await getDungeonMapByUser(sessionUser.user.id) });
     return true;
   }
 
   if (req.method === "POST" && pathname === "/api/dungeon/map/publish") {
     const body = JSON.parse((await readBody(req)) || "{}");
     const token = getAuthToken(req, body);
-    const sessionUser = getSessionUser(token);
+    const sessionUser = await getSessionUser(token);
     if (!sessionUser) {
       json(res, 401, { error: "未登录或登录已过期" });
       return true;
     }
-    const baseMap = getDungeonMapByUser(sessionUser.user.id);
+    const baseMap = await getDungeonMapByUser(sessionUser.user.id);
     if (!baseMap || !Array.isArray(baseMap.placements) || !Array.isArray(baseMap.maskColors)) {
       badRequest(res, "请先保存有效藏宝图后再发布");
       return true;
     }
-    const uuid = createUniqueDungeonUuid();
-    insertPublishedDungeonMapStmt.run(
+    const uuid = await createUniqueDungeonUuid();
+    await insertPublishedDungeonMapStmt.run(
       uuid,
       sessionUser.user.id,
       JSON.stringify(baseMap.placements),
       JSON.stringify(baseMap.maskColors),
     );
-    const published = getPublishedDungeonMap(uuid);
+    const published = await getPublishedDungeonMap(uuid);
     json(res, 200, { ok: true, map: published });
     return true;
   }
 
   if (req.method === "GET" && pathname === "/api/dungeon/maps/mine") {
     const token = getAuthToken(req, null);
-    const sessionUser = getSessionUser(token);
+    const sessionUser = await getSessionUser(token);
     if (!sessionUser) {
       json(res, 401, { error: "未登录或登录已过期" });
       return true;
     }
-    json(res, 200, { items: getMyPublishedDungeonMaps(sessionUser.user.id) });
+    json(res, 200, { items: await getMyPublishedDungeonMaps(sessionUser.user.id) });
     return true;
   }
 
   if (req.method === "GET" && pathname === "/api/dungeon/map/random") {
     const token = getAuthToken(req, null);
-    const sessionUser = getSessionUser(token);
+    const sessionUser = await getSessionUser(token);
     if (!sessionUser) {
       json(res, 401, { error: "未登录或登录已过期" });
       return true;
     }
     const userId = sessionUser.user.id;
-    const row = readRandomUnplayedDungeonMapStmt.get(userId, userId);
+    const row = await readRandomUnplayedDungeonMapStmt.get(userId, userId);
     if (!row) {
       json(res, 200, { map: null });
       return true;
@@ -1920,15 +1972,15 @@ async function handleApi(req, res, pathname) {
       badRequest(res, "Invalid uuid");
       return true;
     }
-    const map = getPublishedDungeonMap(uuid);
+    const map = await getPublishedDungeonMap(uuid);
     if (!map) {
       notFound(res);
       return true;
     }
     const token = getAuthToken(req, null);
-    const sessionUser = getSessionUser(token);
+    const sessionUser = await getSessionUser(token);
     const alreadyPlayed = sessionUser
-      ? Boolean(readDungeonHuntRecordStmt.get(uuid, sessionUser.user.id))
+      ? Boolean(await readDungeonHuntRecordStmt.get(uuid, sessionUser.user.id))
       : false;
     json(res, 200, {
       map: {
@@ -1946,7 +1998,7 @@ async function handleApi(req, res, pathname) {
   if (req.method === "POST" && pathname === "/api/dungeon/hunt/submit") {
     const body = JSON.parse((await readBody(req)) || "{}");
     const token = getAuthToken(req, body);
-    const sessionUser = getSessionUser(token);
+    const sessionUser = await getSessionUser(token);
     if (!sessionUser) {
       json(res, 401, { error: "未登录或登录已过期" });
       return true;
@@ -1956,7 +2008,7 @@ async function handleApi(req, res, pathname) {
       badRequest(res, "Invalid uuid");
       return true;
     }
-    const map = getPublishedDungeonMap(uuid);
+    const map = await getPublishedDungeonMap(uuid);
     if (!map) {
       notFound(res);
       return true;
@@ -1964,12 +2016,12 @@ async function handleApi(req, res, pathname) {
     const score = Number(body.score);
     const safeScore = Number.isFinite(score) ? Math.max(0, Math.floor(score)) : 0;
     const result = body.result === "win" ? "win" : "lose";
-    const existing = readDungeonHuntRecordStmt.get(uuid, sessionUser.user.id);
+    const existing = await readDungeonHuntRecordStmt.get(uuid, sessionUser.user.id);
     if (existing) {
       json(res, 409, { error: "你已经挑战过这张藏宝图" });
       return true;
     }
-    insertDungeonHuntRecordStmt.run(uuid, sessionUser.user.id, safeScore, result);
+    await insertDungeonHuntRecordStmt.run(uuid, sessionUser.user.id, safeScore, result);
     json(res, 200, { ok: true });
     return true;
   }
@@ -1981,28 +2033,28 @@ async function handleApi(req, res, pathname) {
       badRequest(res, "Invalid uuid");
       return true;
     }
-    const map = getPublishedDungeonMap(uuid);
+    const map = await getPublishedDungeonMap(uuid);
     if (!map) {
       notFound(res);
       return true;
     }
-    json(res, 200, { items: readDungeonHuntHistoryStmt.all(uuid) });
+    json(res, 200, { items: await readDungeonHuntHistoryStmt.all(uuid) });
     return true;
   }
 
   if (req.method === "GET" && pathname === "/api/dungeon/hunt/my-history") {
     const token = getAuthToken(req, null);
-    const sessionUser = getSessionUser(token);
+    const sessionUser = await getSessionUser(token);
     if (!sessionUser) {
       json(res, 401, { error: "未登录或登录已过期" });
       return true;
     }
-    json(res, 200, { items: readMyDungeonHuntHistoryStmt.all(sessionUser.user.id) });
+    json(res, 200, { items: await readMyDungeonHuntHistoryStmt.all(sessionUser.user.id) });
     return true;
   }
 
   if (req.method === "GET" && pathname === "/api/dungeon/leaderboard-total") {
-    json(res, 200, { items: readDungeonLeaderboardStmt.all() });
+    json(res, 200, { items: await readDungeonLeaderboardStmt.all() });
     return true;
   }
 
@@ -2048,7 +2100,7 @@ async function handleApi(req, res, pathname) {
       return true;
     }
     if (!skipInsert) {
-      insertSquareCubeHistoryStmt.run(body.equation, body.time, Number(body.timeMs) || 0);
+      await insertSquareCubeHistoryStmt.run(body.equation, body.time, Number(body.timeMs) || 0);
     }
     json(res, 200, { history: getSquareCubeHistory(normalizedLimit) });
     return true;
@@ -2095,7 +2147,7 @@ async function handleApi(req, res, pathname) {
       }
       return true;
     }
-    json(res, 200, { items: readSquareCubeLeaderboardItemsStmt.all(entryId) });
+    json(res, 200, { items: await readSquareCubeLeaderboardItemsStmt.all(entryId) });
     return true;
   }
 
@@ -2144,19 +2196,20 @@ async function handleApi(req, res, pathname) {
 
     db.exec("BEGIN");
     try {
-      const result = insertSquareCubeLeaderboardStmt.run(username, type, totalMs, totalTimeText);
+      const result = await insertSquareCubeLeaderboardStmt.run(username, type, totalMs, totalTimeText);
       const entryId = Number(result.lastInsertRowid);
-      items.forEach((item, index) => {
-        insertSquareCubeLeaderboardItemStmt.run(
+      for (let index = 0; index < items.length; index += 1) {
+        const item = items[index];
+        await insertSquareCubeLeaderboardItemStmt.run(
           entryId,
           index,
           String(item.equation || ""),
           String(item.time || "0s"),
           Number(item.timeMs) || 0,
         );
-      });
+      }
       db.exec("COMMIT");
-      json(res, 200, { ok: true, groups: getSquareCubeLeaderboard() });
+      json(res, 200, { ok: true, groups: await getSquareCubeLeaderboard() });
     } catch (error) {
       db.exec("ROLLBACK");
       throw error;
@@ -2165,28 +2218,28 @@ async function handleApi(req, res, pathname) {
   }
 
   if (req.method === "GET" && pathname === "/api/leaderboard") {
-    json(res, 200, { groups: getLeaderboard() });
+    json(res, 200, { groups: await getLeaderboard() });
     return true;
   }
 
   const detailMatch = pathname.match(/^\/api\/leaderboard\/(\d+)\/items$/);
   if (req.method === "GET" && detailMatch) {
     const entryId = Number(detailMatch[1]);
-    json(res, 200, { items: readLeaderboardItemsStmt.all(entryId) });
+    json(res, 200, { items: await readLeaderboardItemsStmt.all(entryId) });
     return true;
   }
 
   if (req.method === "GET" && pathname === "/api/processing-speed/leaderboard") {
     const query = new URL(req.url || "/", `http://${HOST}:${PORT}`).searchParams;
     const level = query.get("level") === "advanced" ? "advanced" : "beginner";
-    json(res, 200, { level, items: readProcessingSpeedLeaderboardStmt.all(level) });
+    json(res, 200, { level, items: await readProcessingSpeedLeaderboardStmt.all(level) });
     return true;
   }
 
   if (req.method === "POST" && pathname === "/api/settings") {
     const body = JSON.parse((await readBody(req)) || "{}");
     const nextSettings = sanitizeSettings(body);
-    updateSettingsStmt.run(
+    await updateSettingsStmt.run(
       nextSettings.username,
       nextSettings.problemType,
       nextSettings.digitCount,
@@ -2194,8 +2247,8 @@ async function handleApi(req, res, pathname) {
       nextSettings.questionCount,
     );
     json(res, 200, {
-      settings: getSettings(),
-      history: getHistory(nextSettings.questionCount),
+      settings: await getSettings(),
+      history: await getHistory(nextSettings.questionCount),
     });
     return true;
   }
@@ -2211,9 +2264,9 @@ async function handleApi(req, res, pathname) {
       return true;
     }
     if (!skipInsert) {
-      insertHistoryStmt.run(body.equation, body.time, Number(body.timeMs) || 0);
+      await insertHistoryStmt.run(body.equation, body.time, Number(body.timeMs) || 0);
     }
-    json(res, 200, { history: getHistory(normalizedLimit) });
+    json(res, 200, { history: await getHistory(normalizedLimit) });
     return true;
   }
 
@@ -2228,19 +2281,20 @@ async function handleApi(req, res, pathname) {
 
     db.exec("BEGIN");
     try {
-      const result = insertLeaderboardStmt.run(username, totalMs, totalTimeText, configKey, configLabel);
+      const result = await insertLeaderboardStmt.run(username, totalMs, totalTimeText, configKey, configLabel);
       const entryId = Number(result.lastInsertRowid);
-      items.forEach((item, index) => {
-        insertLeaderboardItemStmt.run(
+      for (let index = 0; index < items.length; index += 1) {
+        const item = items[index];
+        await insertLeaderboardItemStmt.run(
           entryId,
           index,
           String(item.equation || ""),
           String(item.time || "0s"),
           Number(item.timeMs) || 0,
         );
-      });
+      }
       db.exec("COMMIT");
-      json(res, 200, { ok: true, groups: getLeaderboard() });
+      json(res, 200, { ok: true, groups: await getLeaderboard() });
     } catch (error) {
       db.exec("ROLLBACK");
       throw error;
@@ -2303,24 +2357,25 @@ async function handleApi(req, res, pathname) {
 
     db.exec("BEGIN");
     try {
-      const result = insertProcessingSpeedEntryStmt.run(
+      const result = await insertProcessingSpeedEntryStmt.run(
         username,
         level,
         Math.round(totalMs),
         totalTimeText || "0.00 秒",
       );
       const entryId = Number(result.lastInsertRowid);
-      items.forEach((item, index) => {
-        insertProcessingSpeedItemStmt.run(
+      for (let index = 0; index < items.length; index += 1) {
+        const item = items[index];
+        await insertProcessingSpeedItemStmt.run(
           entryId,
           index,
           String(item.target || ""),
           Number(item.timeMs) || 0,
           String(item.timeText || "0.00 秒"),
         );
-      });
+      }
       db.exec("COMMIT");
-      json(res, 200, { ok: true, level, items: readProcessingSpeedLeaderboardStmt.all(level) });
+      json(res, 200, { ok: true, level, items: await readProcessingSpeedLeaderboardStmt.all(level) });
     } catch (error) {
       db.exec("ROLLBACK");
       throw error;
@@ -2383,14 +2438,14 @@ async function handleApi(req, res, pathname) {
 
     let item = null;
     if (Number.isInteger(id) && id > 0) {
-      item = readNovelByIdStmt.get(id) || null;
+      item = (await readNovelByIdStmt.get(id)) || null;
     } else {
       const targetSeq = Number.isInteger(seq) && seq > 0 ? seq : 1;
-      item = readNovelTopBySeqStmt.get(targetSeq) || null;
+      item = (await readNovelTopBySeqStmt.get(targetSeq)) || null;
     }
 
-    const nextTopItem = item ? readNovelChildrenTopStmt.get(item.id) || null : null;
-    const items = item ? readNovelChildrenListStmt.all(item.id) : [];
+    const nextTopItem = item ? ((await readNovelChildrenTopStmt.get(item.id)) || null) : null;
+    const items = item ? await readNovelChildrenListStmt.all(item.id) : [];
     json(res, 200, { item, nextTopItem, items });
     return true;
   }
@@ -2408,7 +2463,7 @@ async function handleApi(req, res, pathname) {
       return true;
     }
 
-    const rows = readNovelChildrenPagedStmt.all(parentId, safeLimit + 1, safeOffset);
+    const rows = await readNovelChildrenPagedStmt.all(parentId, safeLimit + 1, safeOffset);
     const hasMore = rows.length > safeLimit;
     const items = hasMore ? rows.slice(0, safeLimit) : rows;
     json(res, 200, { items, hasMore });
@@ -2424,7 +2479,7 @@ async function handleApi(req, res, pathname) {
       badRequest(res, "Invalid novel id");
       return true;
     }
-    const items = readNovelIntegratedStmt.all(id, safeLimit);
+    const items = await readNovelIntegratedStmt.all(id, safeLimit);
     json(res, 200, { items });
     return true;
   }
@@ -2439,7 +2494,7 @@ async function handleApi(req, res, pathname) {
       badRequest(res, "Invalid novel id");
       return true;
     }
-    const items = readNovelIntegratedStmt.all(id, safeLimit);
+    const items = await readNovelIntegratedStmt.all(id, safeLimit);
     sendIntegratedPdf(res, title, items);
     return true;
   }
@@ -2460,7 +2515,7 @@ async function handleApi(req, res, pathname) {
 
     const now = Date.now();
     const cooldownMs = 30 * 1000;
-    const recent = readNovelRecentLikeStmt.get(id, deviceId, ip);
+    const recent = await readNovelRecentLikeStmt.get(id, deviceId, ip);
     if (recent && now - Number(recent.likedAt) < cooldownMs) {
       json(res, 429, {
         error: "Like too frequent",
@@ -2471,15 +2526,15 @@ async function handleApi(req, res, pathname) {
 
     db.exec("BEGIN");
     try {
-      updateNovelVoteStmt.run(id);
-      insertNovelLikeLogStmt.run(id, deviceId, ip, now);
+      await updateNovelVoteStmt.run(id);
+      await insertNovelLikeLogStmt.run(id, deviceId, ip, now);
       db.exec("COMMIT");
     } catch (error) {
       db.exec("ROLLBACK");
       throw error;
     }
 
-    const item = readNovelByIdStmt.get(id) || null;
+    const item = (await readNovelByIdStmt.get(id)) || null;
     json(res, 200, { item });
     return true;
   }
@@ -2501,14 +2556,14 @@ async function handleApi(req, res, pathname) {
       badRequest(res, "Author is required");
       return true;
     }
-    const parent = readNovelByIdStmt.get(parentId);
+    const parent = await readNovelByIdStmt.get(parentId);
     if (!parent) {
       badRequest(res, "Parent content not found");
       return true;
     }
     const seq = Number(parent.seq) + 1;
-    insertNovelStmt.run(seq, parentId, content, author);
-    const item = readNovelChildrenTopStmt.get(parentId) || null;
+    await insertNovelStmt.run(seq, parentId, content, author);
+    const item = (await readNovelChildrenTopStmt.get(parentId)) || null;
     json(res, 200, { ok: true, item });
     return true;
   }
