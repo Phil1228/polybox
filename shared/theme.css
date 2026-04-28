@@ -1,5 +1,6 @@
 :root {
-  color-scheme: light dark;
+  /* Default should look like light theme even when system is dark. */
+  color-scheme: light;
   --page-bg: linear-gradient(180deg, #f7f9ff 0%, #eef2ff 52%, #f8fbff 100%);
   --bg: #f4f7ff;
   --panel: #eef2ff;
@@ -167,36 +168,8 @@ hr,
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --page-bg: radial-gradient(circle at top, #101a32 0%, #0b1020 60%, #0a0f1d 100%);
-    --bg: #0b1020;
-    --panel: #101a32;
-    --card: #0f1a33;
-    --line: rgba(255, 255, 255, 0.12);
-    --line-strong: rgba(255, 255, 255, 0.22);
-    --text: #e6ecff;
-    --muted: #9aa8cc;
-    --btn: #0f1a33;
-    --btn-border: rgba(255, 255, 255, 0.14);
-    --btn-active: #132142;
-    --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.25);
-    --shadow-lift: 0 14px 30px rgba(0, 0, 0, 0.35);
-    --focus-ring: 0 0 0 3px rgba(81, 183, 255, 0.28);
-  }
-
-  body::before {
-    background-image:
-      linear-gradient(rgba(81, 183, 255, 0.12) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(81, 183, 255, 0.12) 1px, transparent 1px);
-  }
-
-  input,
-  select,
-  textarea {
-    background: #0c1730;
-  }
-}
+/* Note: We intentionally do NOT follow system dark mode.
+   "Follow system" should look the same as light mode; only explicit dark theme uses dark colors. */
 
 :root[data-theme="light"] {
   --page-bg: linear-gradient(180deg, #f7f9ff 0%, #eef2ff 52%, #f8fbff 100%);
@@ -227,6 +200,7 @@ hr,
 }
 
 :root[data-theme="dark"] {
+  color-scheme: dark;
   --page-bg: radial-gradient(circle at top, #101a32 0%, #0b1020 60%, #0a0f1d 100%);
   --bg: #0b1020;
   --panel: #101a32;
