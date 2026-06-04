@@ -1,3 +1,8 @@
+/* Product pages: body is flex — footer must not be injected (see site-chrome.js) */
+body[data-seo-blurb] .site-seo-footer {
+  display: none !important;
+}
+
 .site-seo-footer {
   margin: 24px auto 32px;
   padding: 16px 20px;
