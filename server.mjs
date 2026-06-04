@@ -1143,6 +1143,8 @@ function sendFile(res, filePath) {
     const type =
       ext === ".html"
         ? "text/html; charset=utf-8"
+        : ext === ".css"
+          ? "text/css; charset=utf-8"
         : ext === ".js"
           ? "text/javascript; charset=utf-8"
           : ext === ".svg"
@@ -2604,6 +2606,21 @@ export async function handleRequest(req, res) {
     if (pathname === "/nav-loader.js") return void sendFile(res, "shared/nav-loader.js");
     if (pathname === "/theme.css") return void sendFile(res, "shared/theme.css");
     if (pathname === "/theme.js") return void sendFile(res, "shared/theme.js");
+    if (pathname === "/polybox.css") return void sendFile(res, "pages/polybox/polybox.css");
+    if (pathname === "/polybox.js") return void sendFile(res, "pages/polybox/polybox.js");
+    if (pathname === "/assets/polybox/banner-brand.png") return void sendFile(res, "assets/polybox/banner-brand.png");
+    if (pathname === "/assets/polybox/banner-edu.png") return void sendFile(res, "assets/polybox/banner-edu.png");
+    if (pathname === "/assets/polybox/banner-services.png") return void sendFile(res, "assets/polybox/banner-services.png");
+    if (pathname === "/assets/polybox/banner-products.png") return void sendFile(res, "assets/polybox/banner-products.png");
+    if (pathname === "/assets/polybox/card-dev.png") return void sendFile(res, "assets/polybox/card-dev.png");
+    if (pathname === "/assets/polybox/card-commerce.png") return void sendFile(res, "assets/polybox/card-commerce.png");
+    if (pathname === "/assets/polybox/card-product-minimaths.png") return void sendFile(res, "assets/polybox/card-product-minimaths.png");
+    if (pathname === "/assets/polybox/card-product-square-cube.png") return void sendFile(res, "assets/polybox/card-product-square-cube.png");
+    if (pathname === "/assets/polybox/card-product-mini-eng.png") return void sendFile(res, "assets/polybox/card-product-mini-eng.png");
+    if (pathname === "/assets/polybox/card-product-xiaoguwen.png") return void sendFile(res, "assets/polybox/card-product-xiaoguwen.png");
+    if (pathname === "/assets/polybox/card-product-novel.png") return void sendFile(res, "assets/polybox/card-product-novel.png");
+    if (pathname === "/assets/polybox/card-product-processing-speed.png") return void sendFile(res, "assets/polybox/card-product-processing-speed.png");
+    if (pathname === "/assets/polybox/card-product-dungeon.png") return void sendFile(res, "assets/polybox/card-product-dungeon.png");
     if (pathname === "/xiaoguwen.js") return void sendFile(res, "games/xiaoguwen/xiaoguwen.js");
 
     if (pathname === "/minimaths-icon.svg") return void sendFile(res, "games/minimaths/assets/minimaths-icon.svg");

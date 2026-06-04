@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap");
+
 :root {
   /* Default should look like light theme even when system is dark. */
   color-scheme: light;
@@ -27,8 +29,6 @@
   --focus-ring: 0 0 0 3px rgba(43, 125, 255, 0.22);
   --highlight: linear-gradient(135deg, rgba(81, 183, 255, 0.15), rgba(43, 125, 255, 0.08));
 }
-
-@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap");
 
 html,
 body {

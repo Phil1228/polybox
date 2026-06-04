@@ -1,0 +1,739 @@
+/* Polybox — corporate homepage (inspired by Z-ONE Consulting layout) */
+
+body.polybox-page {
+  --pb-navy: #0c1a2e;
+  --pb-navy-light: #132a45;
+  --pb-accent: #1e5a8a;
+  --pb-accent-hover: #2569a0;
+  --pb-gold: #c9a227;
+  --pb-surface: #ffffff;
+  --pb-surface-alt: #f4f6f9;
+  --pb-text: #1a2332;
+  --pb-muted: #5c6b7f;
+  --pb-line: rgba(26, 35, 50, 0.12);
+  --pb-header-h: 72px;
+  --pb-max: 1200px;
+  --pb-section-pad: clamp(48px, 8vw, 88px);
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background: var(--pb-surface) !important;
+  color: var(--pb-text);
+  overscroll-behavior: none;
+}
+
+body.polybox-page::before {
+  display: none !important;
+}
+
+/* Dark theme overrides */
+:root[data-theme="dark"] body.polybox-page {
+  --pb-navy: #060d18;
+  --pb-navy-light: #0f1c2e;
+  --pb-accent: #3d8fd4;
+  --pb-accent-hover: #5aa3e0;
+  --pb-surface: #0a1220;
+  --pb-surface-alt: #0f1a2c;
+  --pb-text: #e8eef7;
+  --pb-muted: #8fa3be;
+  --pb-line: rgba(255, 255, 255, 0.1);
+}
+
+/* Header */
+.site-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  height: var(--pb-header-h);
+  background: var(--pb-navy);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.header-inner {
+  max-width: var(--pb-max);
+  margin: 0 auto;
+  height: 100%;
+  padding: 0 clamp(20px, 4vw, 40px);
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.logo {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #fff;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.main-nav {
+  display: flex;
+  gap: 28px;
+  margin-left: auto;
+}
+
+.main-nav a {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.75);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.main-nav a:hover,
+.main-nav a.is-active {
+  color: #fff;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: 16px;
+}
+
+.icon-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: none;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.icon-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.icon-btn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 2px;
+}
+
+.icon-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+}
+
+.icon-btn .icon-sun {
+  display: none;
+}
+
+:root[data-theme="dark"] body.polybox-page .icon-btn .icon-moon {
+  display: none;
+}
+
+:root[data-theme="dark"] body.polybox-page .icon-btn .icon-sun {
+  display: block;
+}
+
+.icon-btn img {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: none;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Hero carousel */
+.hero.carousel {
+  position: relative;
+  margin-top: var(--pb-header-h);
+  background: var(--pb-navy);
+  overflow: hidden;
+}
+
+.carousel-viewport {
+  min-height: clamp(320px, 52vh, 480px);
+  overflow: hidden;
+}
+
+.carousel-track {
+  display: flex;
+  transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+.carousel-slide {
+  position: relative;
+  flex: 0 0 100%;
+  min-height: clamp(320px, 52vh, 480px);
+  display: flex;
+  align-items: center;
+}
+
+.slide-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-color: var(--pb-navy-light);
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center center;
+}
+
+.slide-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(12, 26, 46, 0.92) 0%,
+      rgba(12, 26, 46, 0.72) 38%,
+      rgba(12, 26, 46, 0.28) 62%,
+      rgba(12, 26, 46, 0.12) 100%
+    ),
+    linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.45) 100%);
+}
+
+.slide-bg--brand {
+  background-image: url("/assets/polybox/banner-brand.png");
+  background-position: center right;
+}
+
+.slide-bg--edu {
+  background-image: url("/assets/polybox/banner-edu.png");
+  background-position: center right;
+}
+
+.slide-bg--services {
+  background-image: url("/assets/polybox/banner-services.png");
+  background-position: center right;
+}
+
+.slide-bg--products {
+  background-image: url("/assets/polybox/banner-products.png");
+  background-position: center center;
+}
+
+.hero-inner {
+  position: relative;
+  z-index: 1;
+  max-width: var(--pb-max);
+  margin: 0 auto;
+  padding: clamp(48px, 10vw, 96px) clamp(56px, 8vw, 72px) clamp(72px, 12vw, 100px);
+  width: 100%;
+}
+
+.hero-eyebrow {
+  margin: 0 0 12px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  color: var(--pb-gold);
+}
+
+.hero-title {
+  margin: 0 0 20px;
+  font-size: clamp(40px, 8vw, 64px);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.05;
+  color: #fff;
+}
+
+.carousel-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+  background: rgba(12, 26, 46, 0.45);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.carousel-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.carousel-btn:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.carousel-btn svg {
+  width: 22px;
+  height: 22px;
+}
+
+.carousel-btn--prev {
+  left: clamp(12px, 3vw, 24px);
+}
+
+.carousel-btn--next {
+  right: clamp(12px, 3vw, 24px);
+}
+
+.carousel-dots {
+  position: absolute;
+  bottom: clamp(20px, 4vw, 32px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  gap: 10px;
+}
+
+.carousel-dot {
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.carousel-dot:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.carousel-dot.is-active {
+  background: #fff;
+  border-color: #fff;
+  transform: scale(1.15);
+}
+
+.carousel-dot:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.hero-lead {
+  margin: 0 0 32px;
+  max-width: 32em;
+  font-size: clamp(15px, 2.2vw, 18px);
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.btn-outline {
+  display: inline-block;
+  padding: 12px 28px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.btn-outline:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: #fff;
+}
+
+.btn-outline:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
+/* Main sections */
+.site-main {
+  background: var(--pb-surface);
+}
+
+.block-section {
+  max-width: var(--pb-max);
+  margin: 0 auto;
+  padding: var(--pb-section-pad) clamp(20px, 4vw, 40px);
+  scroll-margin-top: var(--pb-header-h);
+}
+
+.block-section--alt {
+  background: var(--pb-surface-alt);
+  max-width: none;
+  padding-left: clamp(20px, 4vw, 40px);
+  padding-right: clamp(20px, 4vw, 40px);
+}
+
+.block-section--alt .block-head,
+.block-section--alt .card-grid {
+  max-width: var(--pb-max);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.block-head {
+  margin-bottom: clamp(28px, 5vw, 48px);
+}
+
+.block-label {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--pb-accent);
+}
+
+.block-head h2 {
+  margin: 0;
+  font-size: clamp(26px, 4vw, 36px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--pb-text);
+}
+
+/* Card grids */
+.card-grid {
+  display: grid;
+  gap: clamp(20px, 3vw, 28px);
+}
+
+.card-grid--2 {
+  grid-template-columns: 1fr;
+}
+
+.card-grid--products {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .card-grid--products {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 900px) {
+  .card-grid--2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .card-grid--products {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Info cards (services) */
+.info-card {
+  background: var(--pb-surface);
+  border: 1px solid var(--pb-line);
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.block-section--alt .info-card {
+  background: var(--pb-surface);
+}
+
+.info-card:hover {
+  border-color: var(--pb-accent);
+  box-shadow: 0 12px 40px rgba(12, 26, 46, 0.08);
+}
+
+.info-card-visual {
+  height: 160px;
+  background-color: var(--pb-navy-light);
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center center;
+}
+
+.info-card-visual--dev {
+  background-image: url("/assets/polybox/card-dev.png");
+}
+
+.info-card-visual--commerce {
+  background-image: url("/assets/polybox/card-commerce.png");
+}
+
+.info-card-tag {
+  margin: 20px 24px 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--pb-muted);
+}
+
+.info-card h3 {
+  margin: 8px 24px 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--pb-text);
+}
+
+.info-card > p {
+  margin: 12px 24px 0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--pb-muted);
+  flex: 1;
+}
+
+.card-link {
+  display: inline-block;
+  margin: 20px 24px 24px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--pb-accent);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.card-link:hover {
+  color: var(--pb-accent-hover);
+}
+
+a.card-link::after,
+.product-card .card-link::after {
+  content: " →";
+}
+
+/* Product cards */
+.product-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--pb-surface);
+  border: 1px solid var(--pb-line);
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
+}
+
+.product-card:hover {
+  border-color: var(--pb-accent);
+  box-shadow: 0 16px 48px rgba(12, 26, 46, 0.1);
+  transform: translateY(-2px);
+}
+
+.product-card:focus-visible {
+  outline: 2px solid var(--pb-accent);
+  outline-offset: 2px;
+}
+
+.product-card-visual {
+  height: 140px;
+  background-color: var(--pb-surface-alt);
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center center;
+  border-bottom: 1px solid var(--pb-line);
+}
+
+.product-card-visual--minimaths {
+  background-image: url("/assets/polybox/card-product-minimaths.png");
+}
+
+.product-card-visual--square-cube {
+  background-image: url("/assets/polybox/card-product-square-cube.png");
+}
+
+.product-card-visual--mini-eng {
+  background-image: url("/assets/polybox/card-product-mini-eng.png");
+}
+
+.product-card-visual--xiaoguwen {
+  background-image: url("/assets/polybox/card-product-xiaoguwen.png");
+}
+
+.product-card-visual--novel {
+  background-image: url("/assets/polybox/card-product-novel.png");
+}
+
+.product-card-visual--processing-speed {
+  background-image: url("/assets/polybox/card-product-processing-speed.png");
+}
+
+.product-card-visual--dungeon {
+  background-image: url("/assets/polybox/card-product-dungeon.png");
+}
+
+.product-card-tag {
+  margin: 18px 22px 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--pb-muted);
+}
+
+.product-card h3 {
+  margin: 8px 22px 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--pb-text);
+}
+
+.product-card > p {
+  margin: 10px 22px 0;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--pb-muted);
+  flex: 1;
+}
+
+.product-card .card-link {
+  margin: 18px 22px 22px;
+  color: var(--pb-accent);
+}
+
+/* Footer */
+.site-footer {
+  background: var(--pb-navy);
+  color: rgba(255, 255, 255, 0.75);
+  padding: clamp(32px, 5vw, 48px) clamp(20px, 4vw, 40px);
+}
+
+.footer-inner {
+  max-width: var(--pb-max);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  text-align: center;
+}
+
+.footer-nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 24px;
+}
+
+.footer-nav a {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.footer-nav a:hover {
+  color: #fff;
+}
+
+.footer-copy {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* Mobile header */
+@media (max-width: 720px) {
+  .header-inner {
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+    height: auto;
+    min-height: var(--pb-header-h);
+  }
+
+  .main-nav {
+    order: 3;
+    width: 100%;
+    margin-left: 0;
+    gap: 20px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .main-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .header-actions {
+    margin-left: auto;
+  }
+
+  .site-header {
+    height: auto;
+  }
+
+  .hero.carousel {
+    margin-top: 0;
+    padding-top: calc(var(--pb-header-h) + 8px);
+  }
+
+  .hero-inner {
+    padding-left: clamp(48px, 12vw, 56px);
+    padding-right: clamp(48px, 12vw, 56px);
+  }
+
+  .carousel-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .carousel-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .carousel-track {
+    transition: none;
+  }
+
+  .carousel-dot {
+    transition: none;
+  }
+
+  .product-card,
+  .info-card,
+  .main-nav a,
+  .icon-btn,
+  .btn-outline,
+  .card-link,
+  .carousel-btn {
+    transition: none;
+  }
+
+  .product-card:hover {
+    transform: none;
+  }
+}
