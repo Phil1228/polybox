@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /user.html
+Disallow: /recharge.html
+
+Sitemap: https://www.loong.click/sitemap.xml

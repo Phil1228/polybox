@@ -1157,7 +1157,11 @@ function sendFile(res, filePath) {
                 ? "image/x-icon"
               : ext === ".webmanifest"
                 ? "application/manifest+json; charset=utf-8"
-                : "text/plain; charset=utf-8";
+                : ext === ".xml"
+                  ? "application/xml; charset=utf-8"
+                  : ext === ".txt"
+                    ? "text/plain; charset=utf-8"
+                    : "text/plain; charset=utf-8";
 
     res.writeHead(200, {
       "Content-Type": type,
@@ -2573,12 +2577,33 @@ async function handleApi(req, res, pathname) {
   return false;
 }
 
+const CANONICAL_SITE_HOST = "www.loong.click";
+const REDIRECT_SITE_HOSTS = new Set(["loong.click", "minimaths.loong.click"]);
+
+function redirectToCanonicalHost(req, res, url) {
+  const rawHost = (req.headers?.host || url.host || "").split(":")[0].toLowerCase();
+  if (!REDIRECT_SITE_HOSTS.has(rawHost)) return false;
+  const target = new URL(`${url.pathname}${url.search}`, `https://${CANONICAL_SITE_HOST}`);
+  res.writeHead(301, { Location: target.toString() });
+  res.end();
+  return true;
+}
+
 export async function handleRequest(req, res) {
   try {
     const url = new URL(req.url || "/", `http://${HOST}:${PORT}`);
     const pathname = url.pathname;
 
+    if (redirectToCanonicalHost(req, res, url)) return;
+
     if (await handleApi(req, res, pathname)) return;
+
+    if (pathname === "/robots.txt") return void sendFile(res, "robots.txt");
+    if (pathname === "/sitemap.xml") return void sendFile(res, "sitemap.xml");
+    if (pathname === "/site-config.js") return void sendFile(res, "shared/site-config.js");
+    if (pathname === "/seo-analytics.js") return void sendFile(res, "shared/seo-analytics.js");
+    if (pathname === "/site-chrome.js") return void sendFile(res, "shared/site-chrome.js");
+    if (pathname === "/site-chrome.css") return void sendFile(res, "shared/site-chrome.css");
 
     if (pathname === "/") return void sendFile(res, "pages/polybox/index.html");
     if (pathname === "/polybox.html") return void sendFile(res, "pages/polybox/index.html");
