@@ -76,8 +76,8 @@ function activateTab(tab) {
   const isLogin = tab === "login";
   tabLogin.classList.toggle("is-active", isLogin);
   tabRegister.classList.toggle("is-active", !isLogin);
-  loginPanel.style.display = isLogin ? "block" : "none";
-  registerPanel.style.display = isLogin ? "none" : "block";
+  loginPanel.classList.toggle("is-open", isLogin);
+  registerPanel.classList.toggle("is-open", !isLogin);
 }
 
 async function apiRequest(path, payload, auth) {
@@ -177,7 +177,7 @@ function renderAvatarOptions() {
   options.forEach((src) => {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "avatar-option" + (src === selectedAvatar ? " is-active" : "");
+    btn.className = "user-avatar-option" + (src === selectedAvatar ? " is-active" : "");
     const img = document.createElement("img");
     img.src = src;
     img.alt = "avatar";
@@ -196,10 +196,11 @@ function applyTheme(value) {
   if (value === "light" || value === "dark") {
     root.setAttribute("data-theme", value);
     localStorage.setItem(THEME_KEY, value);
-    return;
+  } else {
+    root.removeAttribute("data-theme");
+    localStorage.removeItem(THEME_KEY);
   }
-  root.removeAttribute("data-theme");
-  localStorage.removeItem(THEME_KEY);
+  syncThemeSelect();
 }
 
 function syncThemeSelect() {
@@ -210,6 +211,14 @@ function syncThemeSelect() {
   } else {
     themeSelectEl.value = "system";
   }
+}
+
+const themeToggleBtn = document.getElementById("theme-toggle");
+if (themeToggleBtn) {
+  themeToggleBtn.addEventListener("click", () => {
+    const current = document.documentElement.getAttribute("data-theme") || "light";
+    applyTheme(current === "dark" ? "light" : "dark");
+  });
 }
 
 tabLogin.addEventListener("click", () => activateTab("login"));

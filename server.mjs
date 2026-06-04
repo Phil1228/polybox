@@ -2603,6 +2603,7 @@ export async function handleRequest(req, res) {
     if (pathname === "/dungeon.js") return void sendFile(res, "games/dungeon/dungeon.js");
     if (pathname === "/recharge.js") return void sendFile(res, "pages/recharge/recharge.js");
     if (pathname === "/user.js") return void sendFile(res, "pages/user/user.js");
+    if (pathname === "/user.css") return void sendFile(res, "pages/user/user.css");
     if (pathname === "/nav-loader.js") return void sendFile(res, "shared/nav-loader.js");
     if (pathname === "/theme.css") return void sendFile(res, "shared/theme.css");
     if (pathname === "/theme.js") return void sendFile(res, "shared/theme.js");

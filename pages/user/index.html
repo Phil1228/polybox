@@ -3,304 +3,133 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#0f172a" />
-    <title>用户管理</title>
+    <meta name="theme-color" content="#0c1a2e" />
+    <meta name="description" content="POLYBOX 用户登录、注册与账户管理" />
+    <title>用户中心 - POLYBOX</title>
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <script src="/theme.js"></script>
     <link rel="stylesheet" href="/theme.css" />
-    <style>
-      :root {
-        --page-bg: linear-gradient(180deg, #f7f9ff 0%, #eef2ff 52%, #f8fbff 100%);
-        --bg: #f4f7ff;
-        --panel: #eef2ff;
-        --card: #ffffff;
-        --line: rgba(26, 36, 64, 0.18);
-        --line-strong: rgba(26, 36, 64, 0.32);
-        --text: #0f172a;
-        --muted: #5b647a;
-        --primary: #2b7dff;
-        --accent: #2b7dff;
-        --accent-strong: #2b7dff;
-        --accent-2: #51b7ff;
-        --danger: #e74c3c;
-        --success: #18a058;
-        --ok: #18a058;
-        --bad: #e74c3c;
-        --btn: #ffffff;
-        --btn-border: rgba(26, 36, 64, 0.2);
-        --btn-active: #e7efff;
-        --shadow-soft: 0 8px 24px rgba(15, 23, 42, 0.08);
-        --shadow-lift: 0 12px 30px rgba(15, 23, 42, 0.14);
-        --radius: 12px;
-        --radius-lg: 16px;
-        --focus-ring: 0 0 0 3px rgba(43, 125, 255, 0.22);
-        --highlight: linear-gradient(135deg, rgba(81, 183, 255, 0.15), rgba(43, 125, 255, 0.08));
-      }
-
-      :root[data-theme="dark"] {
-        --page-bg: radial-gradient(circle at top, #101a32 0%, #0b1020 60%, #0a0f1d 100%);
-        --bg: #0b1020;
-        --panel: #101a32;
-        --card: #0f1a33;
-        --line: rgba(255, 255, 255, 0.12);
-        --line-strong: rgba(255, 255, 255, 0.22);
-        --text: #e6ecff;
-        --muted: #9aa8cc;
-        --btn: #0f1a33;
-        --btn-border: rgba(255, 255, 255, 0.14);
-        --btn-active: #132142;
-        --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.25);
-        --shadow-lift: 0 14px 30px rgba(0, 0, 0, 0.35);
-        --focus-ring: 0 0 0 3px rgba(81, 183, 255, 0.28);
-      }
-
-      * {
-        box-sizing: border-box;
-      }
-      html,
-      body {
-        margin: 0;
-        padding: 0;
-        min-height: 100%;
-        background: var(--page-bg);
-        color: var(--text);
-        font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
-      }
-      body {
-        display: flex;
-        justify-content: center;
-        padding: 24px;
-      }
-      .page {
-        width: min(100%, 980px);
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-      }
-      .spacer {
-        height: 4px;
-      }
-      .card {
-        background: var(--card);
-        border: 1px solid var(--line);
-        border-radius: 16px;
-        padding: 18px;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-      }
-      .tabs {
-        display: flex;
-        gap: 8px;
-      }
-      .tab {
-        flex: 1;
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        padding: 10px 12px;
-        background: transparent;
-        color: var(--muted);
-        font-size: 14px;
-        cursor: pointer;
-      }
-      .tab.is-active {
-        background: var(--highlight);
-        color: var(--text);
-        border-color: var(--accent-2);
-      }
-      label {
-        font-size: 14px;
-        color: var(--muted);
-      }
-      .input {
-        width: 100%;
-        padding: 10px 12px;
-        border-radius: 10px;
-        border: 1px solid var(--line);
-        background: var(--btn);
-        color: var(--text);
-        font-size: 15px;
-      }
-      .input:focus {
-        outline: none;
-        border-color: var(--accent-2);
-        box-shadow: var(--focus-ring);
-      }
-      .hint {
-        font-size: 13px;
-        color: var(--muted);
-      }
-      .btn {
-        border: none;
-        border-radius: 10px;
-        padding: 10px 16px;
-        background: var(--accent-strong);
-        color: #fff;
-        font-size: 14px;
-        cursor: pointer;
-        transition: transform 0.12s ease, box-shadow 0.12s ease;
-      }
-      .btn:hover {
-        box-shadow: var(--shadow-lift);
-      }
-      .btn:active {
-        transform: scale(0.98);
-      }
-      .btn.secondary {
-        background: transparent;
-        border: 1px solid var(--line);
-        color: var(--text);
-      }
-      .btn.danger {
-        background: var(--danger);
-      }
-      .row {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-      }
-      .message {
-        font-size: 14px;
-        min-height: 18px;
-      }
-      .message.success {
-        color: var(--success);
-      }
-      .message.error {
-        color: var(--danger);
-      }
-      .view {
-        display: none;
-      }
-      .view.is-open {
-        display: block;
-      }
-      .avatar-row {
-        display: flex;
-        gap: 14px;
-        align-items: center;
-        flex-wrap: wrap;
-      }
-      .avatar-preview {
-        width: 72px;
-        height: 72px;
-        border-radius: 50%;
-        border: 1px solid var(--line);
-        background: var(--panel);
-        object-fit: cover;
-      }
-      .profile-grid {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 12px;
-      }
-      @media (min-width: 820px) {
-        .profile-grid {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-      }
-      .link-btn {
-        border: none;
-        background: transparent;
-        color: var(--accent);
-        cursor: pointer;
-        padding: 0;
-      }
-      .avatar-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
-        gap: 10px;
-      }
-      .avatar-option {
-        border: 2px solid transparent;
-        border-radius: 16px;
-        background: var(--panel);
-        padding: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-      }
-      .avatar-option.is-active {
-        border-color: var(--accent);
-        box-shadow: var(--focus-ring);
-      }
-      .avatar-option img {
-        width: 48px;
-        height: 48px;
-        border-radius: 50%;
-        object-fit: cover;
-      }
-    </style>
+    <link rel="stylesheet" href="/polybox.css" />
+    <link rel="stylesheet" href="/user.css" />
   </head>
-  <body>
-    <main class="page">
-      <div class="spacer"></div>
+  <body class="polybox-page user-page">
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="logo" href="/">POLYBOX</a>
+        <nav class="main-nav" aria-label="页面导航">
+          <a href="/">返回首页</a>
+        </nav>
+        <div class="header-actions">
+          <button type="button" class="icon-btn" id="theme-toggle" aria-label="切换浅色/深色主题">
+            <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M21 14.5A8.5 8.5 0 0 1 9.5 3 7 7 0 1 0 21 14.5z"></path>
+            </svg>
+            <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"></circle>
+              <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
 
-      <section class="card view" id="auth-view">
-        <div class="tabs">
-          <button class="tab is-active" id="tab-login">登录</button>
-          <button class="tab" id="tab-register">注册</button>
-        </div>
+    <main class="user-main">
+      <div class="user-shell">
+        <aside class="user-aside" aria-hidden="true">
+          <p class="user-aside-eyebrow">POLYBOX ACCOUNT</p>
+          <h1>用户中心</h1>
+          <p>登录或注册账户，同步学习记录、排行榜与个性化设置，畅享 POLYBOX 旗下产品。</p>
+        </aside>
 
-        <div id="login-panel">
-          <label for="login-username">用户名</label>
-          <input class="input" id="login-username" placeholder="4-16 位字母/数字/下划线" />
-          <label for="login-password">密码</label>
-          <input class="input" id="login-password" type="password" placeholder="输入密码" />
-          <div class="row">
-            <button class="btn" id="login-btn">登录</button>
-            <button class="btn secondary" id="to-register-btn">新用户注册</button>
-          </div>
-          <div class="message" id="login-message"></div>
-        </div>
+        <div class="user-content">
+          <section class="user-view user-card" id="auth-view">
+            <header class="user-panel-head">
+              <p class="user-panel-label">ACCOUNT</p>
+              <h2>登录 / 注册</h2>
+            </header>
 
-        <div id="register-panel" style="display: none;">
-          <label for="reg-username">用户名</label>
-          <input class="input" id="reg-username" placeholder="4-16 位字母/数字/下划线" />
-          <label for="reg-password">密码</label>
-          <input class="input" id="reg-password" type="password" placeholder="设置密码" />
-          <div class="row">
-            <button class="btn" id="register-btn">注册</button>
-          </div>
-          <div class="message" id="register-message"></div>
-        </div>
-      </section>
+            <div class="user-tabs">
+              <button type="button" class="user-tab is-active" id="tab-login">登录</button>
+              <button type="button" class="user-tab" id="tab-register">注册</button>
+            </div>
 
-      <section class="card view" id="profile-view">
-        <div class="row" style="justify-content: space-between; align-items: center;">
-          <h2 style="margin: 0; font-size: 18px;">用户信息</h2>
-          <button class="btn danger" id="logout-btn">登出</button>
+            <div class="user-auth-panel is-open" id="login-panel">
+              <div class="user-field">
+                <label for="login-username">用户名</label>
+                <input class="user-input" id="login-username" autocomplete="username" placeholder="4-16 位字母/数字/下划线" />
+              </div>
+              <div class="user-field">
+                <label for="login-password">密码</label>
+                <input class="user-input" id="login-password" type="password" autocomplete="current-password" placeholder="输入密码" />
+              </div>
+              <div class="user-actions">
+                <button type="button" class="user-btn user-btn--primary" id="login-btn">登录</button>
+                <button type="button" class="user-btn user-btn--secondary" id="to-register-btn">新用户注册</button>
+              </div>
+              <div class="user-message" id="login-message"></div>
+            </div>
+
+            <div class="user-auth-panel" id="register-panel">
+              <div class="user-field">
+                <label for="reg-username">用户名</label>
+                <input class="user-input" id="reg-username" autocomplete="username" placeholder="4-16 位字母/数字/下划线" />
+              </div>
+              <div class="user-field">
+                <label for="reg-password">密码</label>
+                <input class="user-input" id="reg-password" type="password" autocomplete="new-password" placeholder="设置密码" />
+              </div>
+              <div class="user-actions">
+                <button type="button" class="user-btn user-btn--primary" id="register-btn">注册</button>
+              </div>
+              <div class="user-message" id="register-message"></div>
+            </div>
+          </section>
+
+          <section class="user-view user-card" id="profile-view">
+            <div class="user-profile-top">
+              <header class="user-panel-head">
+                <p class="user-panel-label">PROFILE</p>
+                <h2>用户信息</h2>
+              </header>
+              <button type="button" class="user-btn user-btn--danger" id="logout-btn">登出</button>
+            </div>
+
+            <div class="user-profile-grid">
+              <div class="user-field">
+                <label>用户名</label>
+                <input class="user-input" id="profile-username" disabled />
+              </div>
+              <div class="user-field">
+                <label for="profile-nickname">昵称</label>
+                <input class="user-input" id="profile-nickname" placeholder="输入昵称" />
+              </div>
+            </div>
+
+            <div class="user-field">
+              <label for="theme-select">主题</label>
+              <select class="user-input" id="theme-select">
+                <option value="system">跟随系统</option>
+                <option value="light">浅色</option>
+                <option value="dark">深色</option>
+              </select>
+            </div>
+
+            <div class="user-avatar-block">
+              <label>头像</label>
+              <div class="user-avatar-row">
+                <img class="user-avatar-preview" id="avatar-preview" alt="头像预览" />
+                <div class="user-avatar-grid" id="avatar-grid"></div>
+              </div>
+            </div>
+
+            <div class="user-actions">
+              <button type="button" class="user-btn user-btn--primary" id="save-profile-btn">保存资料</button>
+              <button type="button" class="user-btn user-btn--secondary" id="go-home-btn">返回首页</button>
+            </div>
+            <div class="user-message" id="profile-message"></div>
+          </section>
         </div>
-        <div class="profile-grid">
-          <div>
-            <label>用户名</label>
-            <input class="input" id="profile-username" disabled />
-          </div>
-          <div>
-            <label for="profile-nickname">昵称</label>
-            <input class="input" id="profile-nickname" placeholder="输入昵称" />
-          </div>
-        </div>
-        <label for="theme-select">主题</label>
-        <select class="input" id="theme-select">
-          <option value="system">跟随系统</option>
-          <option value="light">浅色</option>
-          <option value="dark">深色</option>
-        </select>
-        <label>头像</label>
-        <div class="avatar-row">
-          <img class="avatar-preview" id="avatar-preview" alt="头像预览" />
-          <div style="flex: 1;">
-            <div class="avatar-grid" id="avatar-grid"></div>
-          </div>
-        </div>
-        <div class="row">
-          <button class="btn" id="save-profile-btn">保存资料</button>
-          <button class="btn secondary" id="go-home-btn">返回首页</button>
-        </div>
-        <div class="message" id="profile-message"></div>
-      </section>
+      </div>
     </main>
 
     <script src="/user.js"></script>
