@@ -93,8 +93,9 @@
 - 整合内容可弹窗查看并直接下载 PDF。
 
 ## 4. 数据与存储策略
-- 服务端持久化：SQLite（`data/minimaths.db`）
-- 本地存储（Cookie / localStorage）：
+- **线上（Vercel）**：Turso（`TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN`），排行榜、历史、用户、小说等均走云端库
+- **本地开发**：SQLite 文件（`data/minimaths.db`），未配置 Turso 环境变量时使用
+- 浏览器本地（Cookie / localStorage）：
   - 用户名
   - 数学设置
   - miniEng AI 配置
@@ -103,25 +104,21 @@
 ## 5. 技术架构
 - 前端：HTML/CSS/JavaScript（多页面）
 - 后端：Node.js（ESM）+ `node:http`
-- 数据库：`node:sqlite`
-- PDF：`pdfkit` + CJK 字体文件
-- 部署：`deploy_aws.sh`（配合 `gcp` + `sshmgr`）
+- 数据库：线上 Turso（`@libsql/client`）；本地 `node:sqlite` 文件
+- PDF：`pdfkit` + CJK 字体（Vercel 部署需自行提供字体路径或环境变量）
+- 部署：Vercel（`vercel.json` → `api/index.js` → `server.mjs`）
 
 ## 6. 部署与运维（现状）
-部署脚本能力：
-- 远端安装/校验 Node.js >= 22
-- 安装 npm 依赖（`npm ci --omit=dev`）
-- 安装系统 CJK 字体（best-effort）
-- 自动下载 `NotoSansCJKsc-Regular.otf` 到应用目录
-- 自动写入 `PDF_CJK_FONT_PATH` 到 systemd 服务环境
-- 重启并托管 `minimaths.service`
+- Vercel 项目环境变量：`TURSO_DATABASE_URL`、`TURSO_AUTH_TOKEN`，以及 Stripe / AI 等按需配置
+- 部署后数据持久在 Turso；勿随意更换 Turso 库 URL，否则会连到空库
+- 本地调试：`node server.mjs`（默认 `http://localhost:3000`）
 
 ## 7. 版本亮点
 - 移动端优先交互与响应式布局
 - 数学/英语/古文/小说四模块融合
 - 小说树状叙事 + 候选排序 + 反刷票
 - 整合内容一键导出 PDF
-- 可部署到 Linux 服务器长期运行
+- 托管于 Vercel，数据持久化于 Turso
 
 ## 8. 已知注意事项
 - PDF 中文依赖可用 OTF/TTF 字体，部分 `.ttc` 在 `pdfkit` 下不兼容。

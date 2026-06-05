@@ -13,7 +13,7 @@ const ROOT = process.cwd();
 const USE_TURSO = Boolean(process.env.TURSO_DATABASE_URL && process.env.TURSO_AUTH_TOKEN);
 const IS_VERCEL = Boolean(process.env.VERCEL);
 
-// Vercel's filesystem is read-only; this project is expected to use Turso there.
+// 线上（Vercel）：只读文件系统，持久化必须走 Turso；进程内 SQLite 仅为占位，不存业务数据。
 if (IS_VERCEL && !USE_TURSO) {
   throw new Error(
     "Turso is not configured. On Vercel set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN environment variables."
@@ -23,7 +23,7 @@ if (IS_VERCEL && !USE_TURSO) {
 const DATA_DIR = resolve(ROOT, "data");
 const DB_PATH = resolve(DATA_DIR, "minimaths.db");
 
-// Local dev: file-based SQLite. Vercel: in-memory SQLite to avoid filesystem writes.
+// 本地开发：data/minimaths.db。Vercel：:memory:（所有读写经 prepare() → Turso）。
 const SQLITE_PATH = IS_VERCEL ? ":memory:" : DB_PATH;
 if (!IS_VERCEL) mkdirSync(DATA_DIR, { recursive: true });
 
@@ -194,7 +194,6 @@ db.exec(SCHEMA_SQL);
 
 let _tursoSchemaReady = false;
 async function ensureTursoSchema() {
-  if (!IS_VERCEL) return;
   if (_tursoSchemaReady) return;
   if (!USE_TURSO) return;
 
@@ -211,7 +210,8 @@ async function ensureTursoSchema() {
 }
 
 function prepare(sql) {
-  if (IS_VERCEL) {
+  // 配置了 Turso 时，所有经 prepare 的 API 读写均走 Turso（Vercel 线上唯一持久化层）。
+  if (USE_TURSO) {
     return {
       async all(...args) {
         await ensureTursoSchema();
@@ -259,16 +259,19 @@ const updateRootNovelContentStmt = prepare(`
   WHERE id = ?
 `);
 
-// Local-only SQLite migrations / seed data.
-// On Vercel we use Turso and avoid mutating the ephemeral in-memory SQLite.
-if (!IS_VERCEL) {
+async function seedNovelRootIfNeeded() {
   const rootNovel = await readRootNovelStmt.get();
   if (!rootNovel) {
     await insertRootNovelStmt.run(1, null, DEFAULT_NOVEL_ROOT_CONTENT, 0, "系统");
   } else if (rootNovel.author === "系统" && rootNovel.content === LEGACY_NOVEL_ROOT_CONTENT) {
     await updateRootNovelContentStmt.run(DEFAULT_NOVEL_ROOT_CONTENT, rootNovel.id);
   }
+}
 
+if (USE_TURSO) {
+  await ensureTursoSchema();
+  await seedNovelRootIfNeeded();
+} else if (!IS_VERCEL) {
   function hasColumn(tableName, columnName) {
     const rows = db.prepare(`PRAGMA table_info(${tableName})`).all();
     return rows.some((row) => row.name === columnName);
@@ -280,7 +283,6 @@ if (!IS_VERCEL) {
   if (!hasColumn("leaderboard_entries", "config_label")) {
     db.exec("ALTER TABLE leaderboard_entries ADD COLUMN config_label TEXT NOT NULL DEFAULT '未知-2-2-10'");
   }
-
   if (!hasColumn("novel_contents", "parent_id")) {
     db.exec("ALTER TABLE novel_contents ADD COLUMN parent_id INTEGER");
   }
@@ -296,6 +298,8 @@ if (!IS_VERCEL) {
   if (!hasColumn("dungeon_maps", "mask_colors_json")) {
     db.exec("ALTER TABLE dungeon_maps ADD COLUMN mask_colors_json TEXT NOT NULL DEFAULT '[]'");
   }
+
+  await seedNovelRootIfNeeded();
 }
 
 const getSettingsStmt = prepare(`
