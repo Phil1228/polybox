@@ -182,10 +182,6 @@ export function applyPlay(state, playerId, cardId, chosenColor) {
     return state;
   }
 
-  if (player.hand.length === 1) {
-    player.calledUno = false;
-  }
-
   applyCardEffect(state, card);
   advanceTurn(state);
   return state;
@@ -208,6 +204,9 @@ export function applyDraw(state, playerId) {
   state.drawPile = drawn.drawPile;
   state.pendingDraw = 0;
   state.message = count > 1 ? `摸了 ${count} 张` : "摸了 1 张";
+  if (player.hand.length > 1) {
+    player.calledUno = false;
+  }
   advanceTurn(state);
   return state;
 }
@@ -234,7 +233,33 @@ export function applyCallUno(state, playerId) {
 export function applyChooseColor(state, playerId, cardId, color) {
   if (state.phase !== "choosing_color") throw new Error("当前不需要选色");
   if (state.pendingWildCardId !== cardId) throw new Error("选色状态无效");
-  return applyPlay(state, playerId, cardId, color);
+
+  const player = state.players.find((p) => p.id === playerId);
+  if (!player || player.left) throw new Error("玩家不存在");
+  const cur = currentPlayer(state);
+  if (!cur || cur.id !== playerId) throw new Error("还没轮到你");
+  if (!color || color === "wild") throw new Error("请选择颜色");
+
+  const card = state.currentCard;
+  if (!card || card.id !== cardId || !isWildCard(card)) throw new Error("选色状态无效");
+
+  state.chosenColor = color;
+  state.pendingWildCardId = null;
+  state.phase = "playing";
+
+  const colorLabel = { red: "红色", yellow: "黄色", green: "绿色", blue: "蓝色" }[color] || color;
+  state.message = `选择了${colorLabel}`;
+
+  if (player.hand.length === 0) {
+    state.phase = "finished";
+    state.winnerId = playerId;
+    state.message = `${player.nickname} 获胜！`;
+    return state;
+  }
+
+  applyCardEffect(state, card);
+  advanceTurn(state);
+  return state;
 }
 
 /**

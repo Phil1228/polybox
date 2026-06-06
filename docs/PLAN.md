@@ -416,6 +416,7 @@ docker run -p 8000:8000 uno-game
 | 大厅 / 牌桌 | [`games/uno/index.html`](../games/uno/index.html)、[`table.html`](../games/uno/table.html) |
 | 入口 URL | `/uno.html`、`/uno-table.html` |
 
-- 持久化：Turso 表 `uno_rooms`、`uno_players`（Vercel 线上）
-- 同步：REST + 轮询（替代 WebSocket，适配 Vercel Serverless）
+- 持久化：本地 `data/minimaths.db`；线上 Turso 表 `uno_rooms`、`uno_players`
+- 同步：**step 模式** — 每次 API 最多推进一个 Bot 动作，客户端 REST 轮询 + 飞牌动画（本地/云端同一套协议，无 WebSocket）
+- 轮询：Bot 回合 ~700ms，己方 ~1.8–2.2s（见 `games/uno/uno-runtime.js`）
 - 测试：`npm run test:uno`

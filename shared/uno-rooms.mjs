@@ -3,6 +3,7 @@ import {
   applyMove,
   buildSnapshot,
   createLobbyState,
+  currentPlayer,
   normalizeRules,
   removePlayer,
   restartGame,
@@ -144,10 +145,22 @@ function roomStatusFromState(state) {
 }
 
 /**
+ * 每轮 API 只推进一个 Bot 动作，便于客户端逐帧动画（本地 SQLite / 云端 Turso 均适用）。
  * @param {import('../games/uno/engine/models.js').GameState} state
  */
-function processBotChain(state) {
-  return runBotTurns(state, 24);
+function processSingleBotTurn(state) {
+  return runBotTurns(state, 1);
+}
+
+/**
+ * 若当前轮到 Bot，推进一步。
+ * @param {import('../games/uno/engine/models.js').GameState} state
+ */
+function maybeAdvanceBot(state) {
+  const cur = currentPlayer(state);
+  if (!cur?.isBot) return state;
+  if (state.phase !== "playing" && state.phase !== "choosing_color") return state;
+  return processSingleBotTurn(state);
 }
 
 /**
@@ -177,7 +190,6 @@ export async function createUnoRoom(deps, body) {
 
   if (mode === "ai") {
     gameState = startGame(gameState);
-    gameState = processBotChain(gameState);
     status = roomStatusFromState(gameState);
   }
 
@@ -198,6 +210,7 @@ export async function createUnoRoom(deps, body) {
     player_token: hostToken,
     mode,
     status,
+    sync_mode: "step",
     snapshot: buildSnapshot(gameState, hostToken),
   };
 }
@@ -278,7 +291,7 @@ export async function getUnoState(deps, roomId, token) {
 
   let gameState = hydrateGameState(bundle.room.gameState, bundle.players);
   const before = JSON.stringify(gameState);
-  gameState = processBotChain(gameState);
+  gameState = maybeAdvanceBot(gameState);
   if (JSON.stringify(gameState) !== before) {
     await saveRoomState(deps, roomId, gameState, roomStatusFromState(gameState));
   }
@@ -290,6 +303,7 @@ export async function getUnoState(deps, roomId, token) {
     mode: bundle.room.mode,
     status: bundle.room.status,
     ai_difficulty: bundle.room.aiDifficulty,
+    sync_mode: "step",
     snapshot,
     lobby,
     can_restart: canRestart(bundle.room, bundle.players, token, gameState),
@@ -327,7 +341,6 @@ export async function applyUnoAction(deps, roomId, token, action, payload = {}) 
     if (gameState.phase !== "lobby") throw new Error("游戏已开始");
     if (bundle.players.length < 4) throw new Error("人数未满");
     gameState = startGame(gameState);
-    gameState = processBotChain(gameState);
     const status = roomStatusFromState(gameState);
     await saveRoomState(deps, roomId, gameState, status);
     return {
@@ -336,6 +349,7 @@ export async function applyUnoAction(deps, roomId, token, action, payload = {}) 
       mode: bundle.room.mode,
       ai_difficulty: bundle.room.aiDifficulty,
       can_restart: canRestart(bundle.room, bundle.players, token, gameState),
+      sync_mode: "step",
     };
   }
 
@@ -343,7 +357,6 @@ export async function applyUnoAction(deps, roomId, token, action, payload = {}) 
     if (gameState.phase !== "finished") throw new Error("游戏未结束");
     if (!canRestart(bundle.room, bundle.players, token, gameState)) throw new Error("无权再来一局");
     gameState = restartGame(gameState);
-    gameState = processBotChain(gameState);
     const status = roomStatusFromState(gameState);
     await saveRoomState(deps, roomId, gameState, status);
     return {
@@ -362,7 +375,7 @@ export async function applyUnoAction(deps, roomId, token, action, payload = {}) 
   if (gameState.phase === "lobby") throw new Error("游戏尚未开始");
 
   gameState = applyMove(gameState, token, action, payload);
-  gameState = processBotChain(gameState);
+  gameState = maybeAdvanceBot(gameState);
   const status = roomStatusFromState(gameState);
   await saveRoomState(deps, roomId, gameState, status);
   return {

@@ -139,9 +139,22 @@ describe("wild and color", () => {
     if (!wild) return;
     s = beginWildPlay(s, p0.id, wild.id);
     assert.equal(s.phase, "choosing_color");
+    assert.ok(!p0.hand.some((c) => c.id === wild.id));
     s = applyChooseColor(s, p0.id, wild.id, "red");
     assert.equal(s.phase, "playing");
     assert.equal(s.chosenColor, "red");
+    assert.equal(s.pendingWildCardId, null);
+  });
+
+  it("wild draw four choose color applies draw four", () => {
+    let s = freshGame();
+    const p0 = s.players[0];
+    const wild4 = p0.hand.find((c) => c.value === "wild_draw_four");
+    if (!wild4) return;
+    s = beginWildPlay(s, p0.id, wild4.id);
+    s = applyChooseColor(s, p0.id, wild4.id, "blue");
+    assert.equal(s.chosenColor, "blue");
+    assert.ok(s.pendingDraw >= 4);
   });
 
   it("cancel color returns card to hand", () => {
@@ -180,6 +193,36 @@ describe("uno call", () => {
     if (p0.hand.length > 2) return;
     s = applyCallUno(s, p0.id);
     assert.equal(p0.calledUno, true);
+  });
+
+  it("call uno before playing to one card avoids penalty", () => {
+    let s = freshGame({ unoPenalty: true });
+    const p0 = s.players[0];
+    const top = s.currentCard;
+    const playable = p0.hand.find((c) => c.color === top.color || c.value === top.value);
+    if (!playable) return;
+    const keeper = p0.hand.find((c) => c.id !== playable.id);
+    if (!keeper) return;
+    p0.hand = [playable, keeper];
+    s = applyCallUno(s, p0.id);
+    s = applyPlay(s, p0.id, playable.id);
+    assert.equal(p0.hand.length, 1);
+    assert.equal(p0.calledUno, false, "flag cleared after turn ends");
+    assert.ok(!s.message.includes("罚摸"), `unexpected penalty: ${s.message}`);
+  });
+
+  it("playing to one card without call uno triggers penalty", () => {
+    let s = freshGame({ unoPenalty: true });
+    const p0 = s.players[0];
+    const top = s.currentCard;
+    const playable = p0.hand.find((c) => c.color === top.color || c.value === top.value);
+    if (!playable) return;
+    const keeper = p0.hand.find((c) => c.id !== playable.id);
+    if (!keeper) return;
+    p0.hand = [playable, keeper];
+    s = applyPlay(s, p0.id, playable.id);
+    assert.equal(p0.hand.length, 3, "penalty adds 2 cards after leaving one");
+    assert.ok(s.message.includes("罚摸"), `expected penalty: ${s.message}`);
   });
 });
 

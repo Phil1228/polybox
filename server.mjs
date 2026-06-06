@@ -2659,6 +2659,8 @@ export async function handleRequest(req, res) {
     if (pathname === "/dungeon.js") return void sendFile(res, "games/dungeon/dungeon.js");
     if (pathname === "/uno.css") return void sendFile(res, "games/uno/uno.css");
     if (pathname === "/uno-lobby.js") return void sendFile(res, "games/uno/uno-lobby.js");
+    if (pathname === "/uno-runtime.js") return void sendFile(res, "games/uno/uno-runtime.js");
+    if (pathname === "/uno-sounds.js") return void sendFile(res, "games/uno/uno-sounds.js");
     if (pathname === "/uno-game.js") return void sendFile(res, "games/uno/uno-game.js");
     if (pathname === "/recharge.js") return void sendFile(res, "pages/recharge/recharge.js");
     if (pathname === "/user.js") return void sendFile(res, "pages/user/user.js");

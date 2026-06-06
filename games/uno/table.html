@@ -12,7 +12,10 @@
     <header class="uno-table-header">
       <div id="room-meta">房间 ----</div>
       <div class="msg" id="game-msg">加载中…</div>
-      <div class="timer" id="turn-timer"></div>
+      <div class="timer-wrap">
+        <span class="env-badge" id="env-badge" hidden></span>
+        <span class="timer" id="turn-timer"></span>
+      </div>
     </header>
 
     <div class="uno-table-grid" id="table-grid">
@@ -30,6 +33,17 @@
       <div class="seat-area seat-right" id="seat-right"></div>
       <div class="seat-area seat-bottom" id="seat-bottom"></div>
     </div>
+
+    <aside class="uno-history" id="history-panel" aria-label="出牌记录">
+      <button type="button" class="uno-history-head" id="history-toggle" aria-expanded="true">
+        <span class="uno-history-title">出牌记录</span>
+        <span class="uno-history-chevron" aria-hidden="true">▼</span>
+      </button>
+      <div class="uno-history-body" id="history-body">
+        <ul class="uno-history-list" id="history-list"></ul>
+        <p class="uno-history-empty" id="history-empty">暂无记录</p>
+      </div>
+    </aside>
 
     <footer class="uno-hand-dock" id="hand-dock">
       <div class="hand-label" id="hand-label">我的手牌</div>
@@ -74,6 +88,8 @@
       </div>
     </div>
 
+    <script src="/uno-runtime.js"></script>
+    <script src="/uno-sounds.js"></script>
     <script src="/uno-game.js" defer></script>
   </body>
 </html>
