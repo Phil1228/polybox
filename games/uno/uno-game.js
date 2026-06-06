@@ -37,6 +37,8 @@ const els = {
 let pollTimer = null;
 let turnTimer = null;
 let lastState = null;
+let lastAutoDrawAt = 0;
+let actionInFlight = false;
 let pendingWildCardId = null;
 let canRestart = false;
 
@@ -181,15 +183,21 @@ async function fetchState() {
 }
 
 async function sendAction(action, payload = {}) {
-  const res = await fetch(`/api/uno/rooms/${roomId}/action`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ token, action, ...payload }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "操作失败");
-  renderTable(data);
-  return data;
+  if (actionInFlight) return null;
+  actionInFlight = true;
+  try {
+    const res = await fetch(`/api/uno/rooms/${roomId}/action`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, action, ...payload }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "操作失败");
+    renderTable(data);
+    return data;
+  } finally {
+    actionInFlight = false;
+  }
 }
 
 function onPlayCard(card) {
@@ -210,16 +218,24 @@ function startPoll() {
 
 function startTurnTimer(snap) {
   if (turnTimer) clearInterval(turnTimer);
-  if (!snap.turn_started_at || snap.current_player_id !== snap.you?.id) {
+  const live = lastState || snap;
+  const myTurn = live.current_player_id === live.you?.id;
+  if (!live.turn_started_at || !myTurn || live.phase !== "playing") {
     els.turnTimer.textContent = "";
     return;
   }
-  const timeout = (snap.turn_timeout_sec || 30) * 1000;
+  const timeout = (live.turn_timeout_sec || 30) * 1000;
   const tick = () => {
-    const left = Math.max(0, Math.ceil((snap.turn_started_at + timeout - Date.now()) / 1000));
+    const cur = lastState || live;
+    if (cur.current_player_id !== cur.you?.id || cur.phase !== "playing") {
+      els.turnTimer.textContent = "";
+      return;
+    }
+    const left = Math.max(0, Math.ceil((cur.turn_started_at + timeout - Date.now()) / 1000));
     els.turnTimer.textContent = left > 0 ? `${left}s` : "";
-    if (left <= 0 && snap.current_player_id === snap.you?.id) {
-      sendAction("draw").catch(() => {});
+    if (left <= 0 && cur.turn_started_at !== lastAutoDrawAt) {
+      lastAutoDrawAt = cur.turn_started_at;
+      sendAction("draw").catch((e) => { els.gameMsg.textContent = e.message; });
     }
   };
   tick();
@@ -239,8 +255,17 @@ async function leaveRoom() {
   window.location.href = "/uno.html";
 }
 
-els.drawPile.addEventListener("click", () => sendAction("draw").catch((e) => { els.gameMsg.textContent = e.message; }));
-els.btnDraw.addEventListener("click", () => sendAction("draw").catch((e) => { els.gameMsg.textContent = e.message; }));
+function tryDraw() {
+  const snap = lastState;
+  if (!snap || snap.current_player_id !== snap.you?.id || snap.phase !== "playing") {
+    els.gameMsg.textContent = snap?.phase === "choosing_color" ? "请先选色或等待对手" : "还没轮到你";
+    return;
+  }
+  sendAction("draw").catch((e) => { els.gameMsg.textContent = e.message; });
+}
+
+els.drawPile.addEventListener("click", tryDraw);
+els.btnDraw.addEventListener("click", tryDraw);
 els.btnUno.addEventListener("click", () => sendAction("call_uno").catch((e) => { els.gameMsg.textContent = e.message; }));
 els.btnLeave.addEventListener("click", leaveRoom);
 els.btnLobbyCancel.addEventListener("click", () => {

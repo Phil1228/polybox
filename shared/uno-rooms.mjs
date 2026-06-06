@@ -105,6 +105,10 @@ function serializeGameState(gameState) {
  */
 function hydrateGameState(stored, players) {
   if (stored && stored.players && stored.phase) {
+    const byId = Object.fromEntries(players.map((p) => [p.id, p]));
+    for (const p of stored.players) {
+      if (byId[p.id]) p.isBot = byId[p.id].isBot;
+    }
     return /** @type {import('../games/uno/engine/models.js').GameState} */ (stored);
   }
   const roster = players.map((p) => ({
@@ -272,7 +276,12 @@ export async function getUnoState(deps, roomId, token) {
   const bundle = await loadRoomBundle(deps, roomId);
   if (!bundle) throw new Error("房间不存在");
 
-  const gameState = hydrateGameState(bundle.room.gameState, bundle.players);
+  let gameState = hydrateGameState(bundle.room.gameState, bundle.players);
+  const before = JSON.stringify(gameState);
+  gameState = processBotChain(gameState);
+  if (JSON.stringify(gameState) !== before) {
+    await saveRoomState(deps, roomId, gameState, roomStatusFromState(gameState));
+  }
   const snapshot = buildSnapshot(gameState, token);
   const lobby = bundle.room.status === "lobby" ? buildLobby(bundle.room, bundle.players, token) : null;
 

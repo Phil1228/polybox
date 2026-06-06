@@ -136,9 +136,6 @@ export function runBotTurn(state, botId) {
       try {
         if (isWildCard(card)) {
           const color = pickColor(state, player.hand, state.aiDifficulty);
-          if (state.aiDifficulty === "easy" && Math.random() < 0.2) {
-            return { state: applyMove(state, botId, "play", { card_id: card.id }), action: "play" };
-          }
           return { state: applyMove(state, botId, "play", { card_id: card.id, chosen_color: color }), action: "play" };
         }
         return { state: applyMove(state, botId, "play", { card_id: card.id }), action: "play" };
@@ -163,7 +160,7 @@ export function runBotTurn(state, botId) {
 export function runBotTurns(state, maxSteps = 12) {
   let steps = 0;
   let current = state;
-  while (steps < maxSteps && current.phase === "playing") {
+  while (steps < maxSteps && (current.phase === "playing" || current.phase === "choosing_color")) {
     const cur = currentPlayer(current);
     if (!cur || !cur.isBot) break;
     const { state: next, action } = runBotTurn(current, cur.id);
