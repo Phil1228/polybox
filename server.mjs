@@ -6,6 +6,7 @@ import { DatabaseSync } from "node:sqlite";
 import PDFDocument from "pdfkit";
 import Stripe from "stripe";
 import { getTursoClient } from "./shared/turso-client.mjs";
+import { handleUnoApi } from "./shared/uno-rooms.mjs";
 
 const HOST = "0.0.0.0";
 const PORT = 3000;
@@ -186,6 +187,27 @@ const SCHEMA_SQL = `
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(map_uuid, player_user_id),
     FOREIGN KEY(player_user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS uno_rooms (
+    id TEXT PRIMARY KEY,
+    mode TEXT NOT NULL,
+    rules_json TEXT NOT NULL,
+    ai_difficulty TEXT NOT NULL DEFAULT 'normal',
+    status TEXT NOT NULL DEFAULT 'lobby',
+    game_state_json TEXT NOT NULL DEFAULT '{}',
+    host_player_id TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS uno_players (
+    id TEXT PRIMARY KEY,
+    room_id TEXT NOT NULL,
+    seat INTEGER NOT NULL,
+    nickname TEXT NOT NULL,
+    is_bot INTEGER NOT NULL DEFAULT 0,
+    joined_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(room_id) REFERENCES uno_rooms(id) ON DELETE CASCADE
   );
 `;
 
@@ -2578,6 +2600,9 @@ async function handleApi(req, res, pathname) {
     return true;
   }
 
+  const unoHandled = await handleUnoApi({ prepare }, req, res, pathname, () => readBody(req), json, badRequest);
+  if (unoHandled) return true;
+
   return false;
 }
 
@@ -2621,6 +2646,8 @@ export async function handleRequest(req, res) {
     if (pathname === "/dungeon-play.html") return void sendFile(res, "games/dungeon/play.html");
     if (pathname === "/dungeon-build.html") return void sendFile(res, "games/dungeon/build.html");
     if (pathname === "/dungeon-hunt.html") return void sendFile(res, "games/dungeon/hunt.html");
+    if (pathname === "/uno.html") return void sendFile(res, "games/uno/index.html");
+    if (pathname === "/uno-table.html") return void sendFile(res, "games/uno/table.html");
     if (pathname === "/recharge.html") return void sendFile(res, "pages/recharge/index.html");
     if (pathname === "/user.html") return void sendFile(res, "pages/user/index.html");
 
@@ -2630,6 +2657,9 @@ export async function handleRequest(req, res) {
     if (pathname === "/novel.js") return void sendFile(res, "games/novel/novel.js");
     if (pathname === "/processing-speed.js") return void sendFile(res, "games/processing-speed/processing-speed.js");
     if (pathname === "/dungeon.js") return void sendFile(res, "games/dungeon/dungeon.js");
+    if (pathname === "/uno.css") return void sendFile(res, "games/uno/uno.css");
+    if (pathname === "/uno-lobby.js") return void sendFile(res, "games/uno/uno-lobby.js");
+    if (pathname === "/uno-game.js") return void sendFile(res, "games/uno/uno-game.js");
     if (pathname === "/recharge.js") return void sendFile(res, "pages/recharge/recharge.js");
     if (pathname === "/user.js") return void sendFile(res, "pages/user/user.js");
     if (pathname === "/user.css") return void sendFile(res, "pages/user/user.css");
@@ -2651,6 +2681,7 @@ export async function handleRequest(req, res) {
     if (pathname === "/assets/polybox/card-product-novel.png") return void sendFile(res, "assets/polybox/card-product-novel.png");
     if (pathname === "/assets/polybox/card-product-processing-speed.png") return void sendFile(res, "assets/polybox/card-product-processing-speed.png");
     if (pathname === "/assets/polybox/card-product-dungeon.png") return void sendFile(res, "assets/polybox/card-product-dungeon.png");
+    if (pathname === "/assets/polybox/card-product-uno.png") return void sendFile(res, "assets/polybox/card-product-uno.png");
     if (pathname === "/xiaoguwen.js") return void sendFile(res, "games/xiaoguwen/xiaoguwen.js");
 
     if (pathname === "/minimaths-icon.svg") return void sendFile(res, "games/minimaths/assets/minimaths-icon.svg");

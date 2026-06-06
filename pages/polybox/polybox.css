@@ -586,6 +586,10 @@ a.card-link::after,
   background-image: url("/assets/polybox/card-product-dungeon.png");
 }
 
+.product-card-visual--uno {
+  background-image: url("/assets/polybox/card-product-uno.png");
+}
+
 .product-card-tag {
   margin: 18px 22px 0;
   font-size: 11px;

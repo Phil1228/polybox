@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta
+      name="description"
+      content="UNO 四人对战：浏览器即开即玩，支持单人 vs AI 与在线联机，经典规则与可配置房规。"
+    />
+    <link rel="canonical" href="https://www.loong.click/uno.html" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="zh_CN" />
+    <meta property="og:url" content="https://www.loong.click/uno.html" />
+    <meta property="og:title" content="UNO 四人对战 | POLYBOX" />
+    <meta property="og:description" content="固定 4 人 UNO，vs AI 或在线联机，经典规则。" />
+    <meta property="og:image" content="https://www.loong.click/assets/polybox/card-product-uno.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="UNO 四人对战 | POLYBOX" />
+    <meta name="twitter:image" content="https://www.loong.click/assets/polybox/card-product-uno.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "UNO 四人对战",
+        "url": "https://www.loong.click/uno.html",
+        "applicationCategory": "GameApplication",
+        "operatingSystem": "Web",
+        "inLanguage": "zh-CN",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "CNY" }
+      }
+    </script>
+    <script src="/site-config.js"></script>
+    <script src="/seo-analytics.js" defer></script>
+    <title>UNO 四人对战 | POLYBOX</title>
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="stylesheet" href="/theme.css" />
+    <link rel="stylesheet" href="/uno.css" />
+  </head>
+  <body data-seo-blurb="UNO 四人对战网页游戏，支持 vs AI 与在线联机。">
+    <header class="uno-topbar">
+      <a class="uno-btn" href="/">← POLYBOX</a>
+      <h1>UNO 四人对战</h1>
+      <span></span>
+    </header>
+
+    <main class="uno-page">
+      <h2>UNO 四人对战</h2>
+
+      <div class="uno-field">
+        <label for="nickname">昵称</label>
+        <input id="nickname" type="text" maxlength="16" placeholder="输入昵称" autocomplete="nickname" />
+      </div>
+
+      <div class="uno-field">
+        <label>AI 难度</label>
+        <div class="uno-difficulty" id="difficulty">
+          <button type="button" class="uno-btn" data-diff="easy">简单</button>
+          <button type="button" class="uno-btn active" data-diff="normal">普通</button>
+          <button type="button" class="uno-btn" data-diff="hard">困难</button>
+        </div>
+      </div>
+
+      <button type="button" class="uno-btn primary" id="btn-ai" style="width:100%">单人 vs AI</button>
+
+      <p class="uno-divider">── 创建在线房间 ──</p>
+      <button type="button" class="uno-btn" id="btn-create-online" style="width:100%">创建联机房间</button>
+
+      <p class="uno-divider">── 加入房间 ──</p>
+      <div class="uno-join-row">
+        <input id="join-code" type="text" inputmode="numeric" maxlength="4" placeholder="4 位房间号" />
+        <button type="button" class="uno-btn primary" id="btn-join">加入</button>
+      </div>
+
+      <details class="uno-rules" open>
+        <summary>房规设置</summary>
+        <div class="uno-rule-row">
+          <span>UNO 惩罚</span>
+          <button type="button" class="uno-switch on" id="rule-uno" aria-label="UNO 惩罚"></button>
+        </div>
+        <div class="uno-rule-row">
+          <span>+2 叠 +2</span>
+          <button type="button" class="uno-switch" id="rule-stack" aria-label="+2 叠 +2"></button>
+        </div>
+        <div class="uno-rule-row">
+          <span>回合超时(秒)</span>
+          <input id="rule-timeout" type="number" min="10" max="120" value="30" style="width:64px;padding:6px;border-radius:6px;border:1px solid var(--uno-line);background:var(--uno-card);color:var(--uno-text)" />
+        </div>
+      </details>
+
+      <div class="uno-msg" id="msg" role="status"></div>
+    </main>
+
+    <script src="/uno-lobby.js" defer></script>
+  </body>
+</html>

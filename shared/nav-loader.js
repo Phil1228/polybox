@@ -23,6 +23,7 @@
     <button class="nav-button" id="nav-novel">novel</button>
     <button class="nav-button" id="nav-speed">加工速度</button>
     <button class="nav-button" id="nav-dungeon">迷宫寻宝</button>
+    <button class="nav-button" id="nav-uno">UNO 四人对战</button>
     <button class="nav-button" id="nav-recharge">充值</button>
   </div>
   <div class="settings-actions">
@@ -48,6 +49,7 @@
     <button class="btn nav-button" id="nav-novel-btn">novel</button>
     <button class="btn nav-button" id="nav-speed-btn">加工速度</button>
     <button class="btn nav-button" id="nav-dungeon-btn">迷宫寻宝</button>
+    <button class="btn nav-button" id="nav-uno-btn">UNO 四人对战</button>
     <button class="btn nav-button" id="nav-recharge-btn">充值</button>
   </div>
   <button class="btn" id="nav-close-btn">返回</button>
@@ -71,6 +73,7 @@
     <button class="btn nav-button" id="nav-novel-btn">novel</button>
     <button class="btn nav-button" id="nav-speed-btn">加工速度</button>
     <button class="btn nav-button" id="nav-dungeon-btn">迷宫寻宝</button>
+    <button class="btn nav-button" id="nav-uno-btn">UNO 四人对战</button>
     <button class="btn nav-button" id="nav-recharge-btn">充值</button>
   </div>
   <button class="btn" id="nav-close-btn">返回</button>
@@ -89,5 +92,13 @@
     squareCubeBtnAlt.addEventListener("click", () => {
       window.location.href = "/square-cube.html";
     });
+  }
+  for (const id of ["nav-uno", "nav-uno-btn"]) {
+    const unoBtn = document.getElementById(id);
+    if (unoBtn) {
+      unoBtn.addEventListener("click", () => {
+        window.location.href = "/uno.html";
+      });
+    }
   }
 })();

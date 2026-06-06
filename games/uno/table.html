@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex" />
+    <title>UNO 牌桌 | POLYBOX</title>
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="stylesheet" href="/uno.css" />
+  </head>
+  <body class="uno-table-page">
+    <header class="uno-table-header">
+      <div id="room-meta">房间 ----</div>
+      <div class="msg" id="game-msg">加载中…</div>
+      <div class="timer" id="turn-timer"></div>
+    </header>
+
+    <div class="uno-table-grid" id="table-grid">
+      <div class="seat-area seat-top" id="seat-top"></div>
+      <div class="seat-area seat-left" id="seat-left"></div>
+      <div class="seat-area seat-center seat-center">
+        <div class="pile-area">
+          <div class="draw-pile" id="draw-pile" title="摸牌"><span>摸牌</span></div>
+        </div>
+        <div class="current-card-wrap">
+          <div class="color-dot" id="color-dot"></div>
+          <div id="current-card"></div>
+        </div>
+      </div>
+      <div class="seat-area seat-right" id="seat-right"></div>
+      <div class="seat-area seat-bottom" id="seat-bottom"></div>
+    </div>
+
+    <footer class="uno-hand-dock" id="hand-dock">
+      <div class="hand-label" id="hand-label">我的手牌</div>
+      <div class="uno-hand-scroll" id="hand-scroll"></div>
+      <div class="uno-actions">
+        <button type="button" class="uno-btn" id="btn-uno">UNO!</button>
+        <button type="button" class="uno-btn" id="btn-draw">摸牌</button>
+        <button type="button" class="uno-btn danger" id="btn-leave">退出房间</button>
+      </div>
+    </footer>
+
+    <div class="uno-overlay hidden" id="lobby-overlay">
+      <div class="uno-modal">
+        <h3>等待玩家</h3>
+        <p>房间号: <strong id="lobby-room"></strong></p>
+        <div class="lobby-list" id="lobby-list"></div>
+        <button type="button" class="uno-btn primary hidden" id="btn-start">开始游戏（4 人已到齐）</button>
+        <button type="button" class="uno-btn" id="btn-lobby-cancel" style="margin-top:12px">取消</button>
+      </div>
+    </div>
+
+    <div class="uno-overlay hidden" id="color-overlay">
+      <div class="uno-modal">
+        <h3>选择颜色</h3>
+        <div class="uno-color-picks">
+          <button type="button" class="c-red" data-color="red" aria-label="红色"></button>
+          <button type="button" class="c-yellow" data-color="yellow" aria-label="黄色"></button>
+          <button type="button" class="c-green" data-color="green" aria-label="绿色"></button>
+          <button type="button" class="c-blue" data-color="blue" aria-label="蓝色"></button>
+        </div>
+        <button type="button" class="uno-btn" id="btn-cancel-color">取消</button>
+      </div>
+    </div>
+
+    <div class="uno-overlay hidden" id="end-overlay">
+      <div class="uno-modal">
+        <h3 id="end-title">对局结束</h3>
+        <p id="end-msg"></p>
+        <button type="button" class="uno-btn primary hidden" id="btn-restart">再来一局</button>
+        <p id="wait-restart" class="hidden" style="color:var(--uno-muted);font-size:0.85rem">等待房主再来一局…</p>
+        <button type="button" class="uno-btn" id="btn-home" style="margin-top:12px">返回大厅</button>
+      </div>
+    </div>
+
+    <script src="/uno-game.js" defer></script>
+  </body>
+</html>
