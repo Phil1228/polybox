@@ -15,6 +15,7 @@
     "start": "node server.mjs",
     "dev": "node --env-file=.env.local server.mjs",
     "reset-password": "node scripts/reset-user-password.mjs",
-    "test:uno": "node --test tests/uno/engine.test.js"
+    "test:uno": "node --test tests/uno/engine.test.js",
+    "test:image-dl": "node --test tests/image-dl/*.test.js"
   }
 }

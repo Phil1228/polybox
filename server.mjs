@@ -7,6 +7,7 @@ import PDFDocument from "pdfkit";
 import Stripe from "stripe";
 import { getTursoClient } from "./shared/turso-client.mjs";
 import { handleUnoApi } from "./shared/uno-rooms.mjs";
+import { proxyInstagramImage, resolveInstagramImage, resolveInstagramImages } from "./shared/image-dl.mjs";
 
 const HOST = "0.0.0.0";
 const PORT = 3000;
@@ -2603,6 +2604,39 @@ async function handleApi(req, res, pathname) {
   const unoHandled = await handleUnoApi({ prepare }, req, res, pathname, () => readBody(req), json, badRequest);
   if (unoHandled) return true;
 
+  if (req.method === "POST" && pathname === "/api/image-dl/resolve") {
+    try {
+      const body = JSON.parse((await readBody(req)) || "{}");
+      const result = await resolveInstagramImages(body.url);
+      json(res, 200, result);
+    } catch (error) {
+      badRequest(res, error instanceof Error ? error.message : "解析失败");
+    }
+    return true;
+  }
+
+  if (req.method === "GET" && pathname === "/api/image-dl/file") {
+    try {
+      const query = new URL(req.url || "/", `http://${HOST}:${PORT}`).searchParams;
+      const imageUrl = query.get("url") || "";
+      const filename = query.get("filename") || "instagram.jpg";
+      const inline = query.get("inline") === "1";
+      const proxied = await proxyInstagramImage(imageUrl, filename);
+      const buf = Buffer.from(await new Response(proxied.body).arrayBuffer());
+      res.writeHead(200, {
+        "Content-Type": proxied.contentType,
+        "Content-Disposition": inline
+          ? `inline; filename="${proxied.filename}"`
+          : `attachment; filename="${proxied.filename}"`,
+        "Cache-Control": "no-store",
+      });
+      res.end(buf);
+    } catch (error) {
+      badRequest(res, error instanceof Error ? error.message : "下载失败");
+    }
+    return true;
+  }
+
   return false;
 }
 
@@ -2648,6 +2682,7 @@ export async function handleRequest(req, res) {
     if (pathname === "/dungeon-hunt.html") return void sendFile(res, "games/dungeon/hunt.html");
     if (pathname === "/uno.html") return void sendFile(res, "games/uno/index.html");
     if (pathname === "/uno-table.html") return void sendFile(res, "games/uno/table.html");
+    if (pathname === "/image-dl.html") return void sendFile(res, "games/image-dl/index.html");
     if (pathname === "/recharge.html") return void sendFile(res, "pages/recharge/index.html");
     if (pathname === "/user.html") return void sendFile(res, "pages/user/index.html");
 
@@ -2662,6 +2697,8 @@ export async function handleRequest(req, res) {
     if (pathname === "/uno-runtime.js") return void sendFile(res, "games/uno/uno-runtime.js");
     if (pathname === "/uno-sounds.js") return void sendFile(res, "games/uno/uno-sounds.js");
     if (pathname === "/uno-game.js") return void sendFile(res, "games/uno/uno-game.js");
+    if (pathname === "/image-dl.js") return void sendFile(res, "games/image-dl/image-dl.js");
+    if (pathname === "/image-dl.css") return void sendFile(res, "games/image-dl/image-dl.css");
     if (pathname === "/recharge.js") return void sendFile(res, "pages/recharge/recharge.js");
     if (pathname === "/user.js") return void sendFile(res, "pages/user/user.js");
     if (pathname === "/user.css") return void sendFile(res, "pages/user/user.css");
@@ -2684,6 +2721,9 @@ export async function handleRequest(req, res) {
     if (pathname === "/assets/polybox/card-product-processing-speed.png") return void sendFile(res, "assets/polybox/card-product-processing-speed.png");
     if (pathname === "/assets/polybox/card-product-dungeon.png") return void sendFile(res, "assets/polybox/card-product-dungeon.png");
     if (pathname === "/assets/polybox/card-product-uno.png") return void sendFile(res, "assets/polybox/card-product-uno.png");
+    if (pathname === "/assets/polybox/card-product-image-dl.png") {
+      return void sendFile(res, "assets/polybox/card-product-image-dl.png");
+    }
     if (pathname === "/xiaoguwen.js") return void sendFile(res, "games/xiaoguwen/xiaoguwen.js");
 
     if (pathname === "/minimaths-icon.svg") return void sendFile(res, "games/minimaths/assets/minimaths-icon.svg");

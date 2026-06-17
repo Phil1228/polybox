@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta
+      name="description"
+      content="Instagram 图片下载器：粘贴帖子或 Reels 链接，解析并下载主图，支持 img_index 多图选择。"
+    />
+    <link rel="canonical" href="https://www.loong.click/image-dl.html" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="zh_CN" />
+    <meta property="og:url" content="https://www.loong.click/image-dl.html" />
+    <meta property="og:title" content="图片下载器 - Instagram 图片保存 | POLYBOX" />
+    <meta
+      property="og:description"
+      content="粘贴 Instagram 帖子/Reels 链接，一键下载主图，支持轮播 img_index。"
+    />
+    <meta property="og:image" content="https://www.loong.click/assets/polybox/card-product-image-dl.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="图片下载器 | POLYBOX" />
+    <meta name="twitter:description" content="Instagram 帖子图片解析与下载工具。" />
+    <meta name="twitter:image" content="https://www.loong.click/assets/polybox/card-product-image-dl.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "图片下载器",
+        "url": "https://www.loong.click/image-dl.html",
+        "applicationCategory": "UtilitiesApplication",
+        "operatingSystem": "Web",
+        "inLanguage": "zh-CN",
+        "description": "Instagram 帖子图片解析与下载工具。",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "CNY" }
+      }
+    </script>
+    <script src="/site-config.js"></script>
+    <script src="/seo-analytics.js" defer></script>
+    <title>图片下载器 - Instagram 图片保存 | POLYBOX</title>
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="stylesheet" href="/image-dl.css" />
+  </head>
+  <body data-seo-blurb="Instagram 图片下载器，粘贴链接即可保存公开帖子图片。">
+    <main class="page">
+      <header class="hero">
+        <h1>图片下载器</h1>
+        <p>粘贴 Instagram 帖子或 Reels 链接，从页面 JSON 中的 <code>display_uri</code> 等字段解析图片。私密帖会静默跳过。</p>
+      </header>
+
+      <section class="panel" aria-labelledby="form-title">
+        <h2 id="form-title" class="visually-hidden">下载表单</h2>
+        <label for="url-input">Instagram 链接</label>
+        <input
+          id="url-input"
+          class="url-input"
+          type="url"
+          inputmode="url"
+          autocomplete="off"
+          placeholder="https://www.instagram.com/p/DZpRorVEv4T/?img_index=2"
+        />
+        <div class="actions">
+          <button type="button" class="btn btn-primary" id="btn-resolve">解析链接</button>
+        </div>
+        <p class="status" id="status" role="status"></p>
+        <h3 class="grid-title" id="grid-title" hidden>图片列表</h3>
+        <div class="image-grid" id="image-grid"></div>
+        <p class="note">仅供下载你有权访问的公开内容。若帖子私密或需登录，可能无法解析。</p>
+      </section>
+
+      <div class="toolbar">
+        <button type="button" class="btn btn-ghost" id="btn-home">返回 POLYBOX 首页</button>
+      </div>
+    </main>
+
+    <style>
+      .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      code {
+        font-size: 0.88em;
+        background: rgba(30, 90, 138, 0.08);
+        padding: 1px 6px;
+        border-radius: 4px;
+      }
+    </style>
+
+    <link rel="stylesheet" href="/site-chrome.css" />
+    <script src="/site-chrome.js" defer></script>
+    <script src="/image-dl.js" defer></script>
+  </body>
+</html>

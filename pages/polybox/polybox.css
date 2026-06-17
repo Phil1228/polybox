@@ -590,6 +590,10 @@ a.card-link::after,
   background-image: url("/assets/polybox/card-product-uno.png");
 }
 
+.product-card-visual--image-dl {
+  background-image: url("/assets/polybox/card-product-image-dl.png");
+}
+
 .product-card-tag {
   margin: 18px 22px 0;
   font-size: 11px;
