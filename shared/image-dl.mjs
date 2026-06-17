@@ -11,8 +11,12 @@ const DISPLAY_URI_RES = [
   /display_url\\":\\"((?:\\.|[^"\\])*?)\\"/g,
 ];
 
-const FETCH_UA =
-  "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)";
+const FETCH_UAS = [
+  "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+  "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+  "Mozilla/5.0",
+  "Instagram 219.0.0.12.117 Android",
+];
 
 const DOWNLOAD_UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
@@ -161,30 +165,90 @@ function embedPageUrl(normalizedUrl, imgIndex) {
   return `${base}embed/captioned/${params}`;
 }
 
+const CLOUD_EMPTY_HINT =
+  "未找到可下载的公开图片。私密帖会跳过。若本地可用、线上不行，通常是 Instagram 拦截了云端服务器 IP（Vercel/AWS 等）；可在本地运行 node server.mjs，或在 Vercel 将函数区域设为香港/新加坡后重试。";
+
+/**
+ * 依次尝试多种爬虫 UA，返回含 display_uri 最多的 HTML。
+ * @param {string} pageUrl
+ * @param {{ fetch?: typeof fetch, userAgents?: string[] }} [deps]
+ */
+export async function fetchInstagramHtml(pageUrl, deps = {}) {
+  const doFetch = deps.fetch || fetch;
+  const userAgents = deps.userAgents || FETCH_UAS;
+  let bestHtml = "";
+  let bestCount = -1;
+
+  for (const userAgent of userAgents) {
+    try {
+      const res = await doFetch(pageUrl, {
+        headers: {
+          "User-Agent": userAgent,
+          Accept: "text/html,application/xhtml+xml",
+          "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+        },
+        redirect: "follow",
+      });
+      if (!res.ok) continue;
+      const html = await res.text();
+      const count = extractInstagramImageUrls(html).length;
+      if (count > bestCount) {
+        bestCount = count;
+        bestHtml = html;
+        if (count > 0) break;
+      }
+    } catch {
+      // try next UA
+    }
+  }
+
+  return bestHtml;
+}
+
+/**
+ * 兜底：/media/?size=l 302 到 CDN 直链（通常只有首图）。
+ * @param {string} shortcode
+ * @param {{ fetch?: typeof fetch, userAgents?: string[] }} [deps]
+ */
+export async function fetchMediaImageUrl(shortcode, deps = {}) {
+  const doFetch = deps.fetch || fetch;
+  const userAgents = deps.userAgents || FETCH_UAS;
+  const pageUrl = `https://www.instagram.com/p/${shortcode}/media/?size=l`;
+
+  for (const userAgent of userAgents) {
+    try {
+      const res = await doFetch(pageUrl, {
+        headers: {
+          "User-Agent": userAgent,
+          Accept: "*/*",
+          Referer: "https://www.instagram.com/",
+        },
+        redirect: "manual",
+      });
+      if (res.status < 300 || res.status >= 400) continue;
+      const location = res.headers.get("location");
+      if (location && isCdnImageUrl(location)) return location;
+    } catch {
+      // try next UA
+    }
+  }
+
+  return null;
+}
+
 /**
  * @param {string} pageUrl
  * @param {{ fetchHtml?: (url: string) => Promise<string> }} [deps]
  */
 export async function resolveInstagramImages(pageUrl, deps = {}) {
   const { shortcode, imgIndex, normalizedUrl } = parseInstagramPageUrl(pageUrl);
+  const fetchOpts = {
+    fetch: deps.fetch,
+    userAgents: deps.userAgents,
+  };
   const fetchHtml =
     deps.fetchHtml ||
-    (async (url) => {
-      try {
-        const res = await fetch(url, {
-          headers: {
-            "User-Agent": FETCH_UA,
-            Accept: "text/html,application/xhtml+xml",
-            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-          },
-          redirect: "follow",
-        });
-        if (!res.ok) return "";
-        return res.text();
-      } catch {
-        return "";
-      }
-    });
+    ((url) => fetchInstagramHtml(url, fetchOpts));
 
   const embedHtml = await fetchHtml(embedPageUrl(normalizedUrl, imgIndex));
   let urls = embedHtml ? extractInstagramImageUrls(embedHtml) : [];
@@ -194,6 +258,11 @@ export async function resolveInstagramImages(pageUrl, deps = {}) {
     urls = mainHtml ? extractInstagramImageUrls(mainHtml) : [];
   }
 
+  if (!urls.length) {
+    const mediaUrl = await fetchMediaImageUrl(shortcode, fetchOpts);
+    if (mediaUrl) urls = [mediaUrl];
+  }
+
   const images = urls.map((imageUrl, i) => ({
     index: i + 1,
     imageUrl,
@@ -201,10 +270,7 @@ export async function resolveInstagramImages(pageUrl, deps = {}) {
   }));
 
   const defaultIndex = imgIndex > images.length ? 1 : imgIndex;
-  const hint =
-    images.length === 0
-      ? "未找到可下载的公开图片（私密帖已跳过，或该链接暂无可解析内容）"
-      : "";
+  const hint = images.length === 0 ? CLOUD_EMPTY_HINT : "";
 
   return {
     shortcode,

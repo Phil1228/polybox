@@ -155,11 +155,33 @@ describe("resolveInstagramImages", () => {
     const loginHtml = `<a href="https://www.instagram.com/accounts/login/">Log in</a>`;
     const result = await resolveInstagramImages(
       "https://www.instagram.com/p/AbCdEf/",
-      { fetchHtml: async () => loginHtml },
+      {
+        fetchHtml: async () => loginHtml,
+        fetch: async () => ({ ok: false, status: 404, text: async () => "" }),
+      },
     );
     assert.equal(result.total, 0);
-    assert.ok(result.hint);
+    assert.ok(result.hint.includes("云端"));
     assert.equal(result.images.length, 0);
+  });
+
+  it("falls back to media redirect when display_uri missing", async () => {
+    const mediaUrl =
+      "https://instagram.fhkg2-1.fna.fbcdn.net/v/t51.82787-15/723162271_18593174404049130_6804782840679651555_n.jpg?stp=dst-jpg_e35_tt6";
+    const result = await resolveInstagramImages("https://www.instagram.com/p/DZpRorVEv4T/", {
+      fetchHtml: async () => "",
+      fetch: async (url, init) => {
+        if (String(url).includes("/media/?size=l")) {
+          return {
+            status: 302,
+            headers: { get: (k) => (k === "location" ? mediaUrl : null) },
+          };
+        }
+        return { ok: false, status: 404, text: async () => "" };
+      },
+    });
+    assert.equal(result.total, 1);
+    assert.equal(result.images[0].imageUrl, mediaUrl);
   });
 
   it("fetches embed page first, then main page as fallback", async () => {
